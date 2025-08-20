@@ -52,6 +52,14 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
+				// TLAHUACALI Custom Colors
+				tlahuacali: {
+					red: 'hsl(var(--tlahuacali-red))',
+					cream: 'hsl(var(--tlahuacali-cream))',
+					beige: 'hsl(var(--tlahuacali-beige))'
+				},
+				success: 'hsl(var(--success))',
+				warning: 'hsl(var(--warning))',
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
 					foreground: 'hsl(var(--sidebar-foreground))',
