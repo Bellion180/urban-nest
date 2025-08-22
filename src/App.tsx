@@ -11,7 +11,7 @@ import BuildingResidents from "./components/BuildingResidents";
 import ResidentDetail from "./components/ResidentDetail";
 import AdminPanel from "./components/AdminPanel";
 import NotFound from "./pages/NotFound";
-
+import AddAssociate from './components/AddAssociate';
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -28,6 +28,7 @@ const App = () => (
             <Route path="/building/:buildingId" element={<BuildingResidents />} />
             <Route path="/resident/:residentId" element={<ResidentDetail />} />
             <Route path="/admin" element={<AdminPanel />} />
+            <Route path="/add-associate" element={<AddAssociate />} />"
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
