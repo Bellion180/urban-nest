@@ -5,6 +5,13 @@ import { Button } from '@/components/ui/button';
 import { buildings } from '@/data/mockData';
 import { Building, Users, ArrowRight, Layers } from 'lucide-react';
 import Header from './Header';
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -25,61 +32,75 @@ const Dashboard = () => {
           <p className="text-muted-foreground">Selecciona un edificio para ver los residentes</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {buildings.map((building) => (
-            <Card 
-              key={building.id} 
-              className="bg-tlahuacali-cream hover:shadow-lg transition-shadow duration-300 overflow-hidden"
-            >
-              <div className="aspect-video relative">
-                <img 
-                  src={building.imagen} 
-                  alt={building.nombre}
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute top-4 left-4 bg-tlahuacali-red text-white px-3 py-1 rounded-full text-sm font-medium">
-                  {building.nombre}
-                </div>
-              </div>
-              
-              <CardContent className="p-6">
-                <h3 className="text-xl font-semibold text-foreground mb-2">
-                  {building.nombre}
-                </h3>
-                <p className="text-muted-foreground mb-4">
-                  {building.descripcion}
-                </p>
-                
-                <div className="flex justify-between items-center mb-4">
-                  <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                    <div className="flex items-center space-x-1">
-                      <Building className="h-4 w-4" />
-                      <span>{building.apartamentos} apts</span>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <Users className="h-4 w-4" />
-                      <span>{building.residentes} residentes</span>
+        <Carousel
+          opts={{
+            align: "start",
+            loop: true,
+          }}
+          className="w-full max-w-7xl mx-auto"
+        >
+          <CarouselContent>
+            {buildings.map((building) => (
+              <CarouselItem key={building.id} className="md:basis-1/2 lg:basis-1/3">
+                <Card 
+                  className="bg-tlahuacali-cream hover:shadow-lg transition-shadow duration-300 overflow-hidden mx-2"
+                >
+                  <div className="aspect-video relative">
+                    <img 
+                      src={building.imagen} 
+                      alt={building.nombre}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute top-4 left-4 bg-tlahuacali-red text-white px-3 py-1 rounded-full text-sm font-medium">
+                      {building.nombre}
                     </div>
                   </div>
-                </div>
+                
                 
 
                 
-                <Button
-                  onClick={() => handleNivelesSelect(building.id)}
-                  variant="outline"
-                  className="w-full border-tlahuacali-red text-tlahuacali-red hover:bg-tlahuacali-red hover:text-white"
-                >
-                  <Layers className="mr-2 h-4 w-4" />
-                  Seleccionar Niveles
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+              
+                  
+                  <CardContent className="p-6">
+                    <h3 className="text-xl font-semibold text-foreground mb-2">
+                      {building.nombre}
+                    </h3>
+                    <p className="text-muted-foreground mb-4">
+                      {building.descripcion}
+                    </p>
+                    
+                    <div className="flex justify-between items-center mb-4">
+                      <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                        <div className="flex items-center space-x-1">
+                          <Building className="h-4 w-4" />
+                          <span>{building.apartamentos} apts</span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <Users className="h-4 w-4" />
+                          <span>{building.residentes} residentes</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <Button
+                      onClick={() => handleNivelesSelect(building.id)}
+                      className="w-full bg-tlahuacali-red hover:bg-tlahuacali-red/90 text-white"
+                    >
+                      Ver Nivel
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </CardContent>
+                </Card>
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+          <CarouselPrevious />
+          <CarouselNext />
+        </Carousel>
       </main>
     </div>
   );
 };
 
 export default Dashboard;
+
