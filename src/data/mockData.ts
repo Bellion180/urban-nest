@@ -24,6 +24,38 @@ export const buildings: Building[] = [
     imagen: '/lovable-uploads/building-c.jpg',
     apartamentos: 22,
     residentes: 52
+  },
+  {
+    id: '4',
+    nombre: 'Edificio D',
+    descripcion: 'Torre este con área de coworking',
+    imagen: '/lovable-uploads/building-a.jpg',
+    apartamentos: 25,
+    residentes: 58
+  },
+  {
+    id: '5',
+    nombre: 'Edificio E',
+    descripcion: 'Torre oeste con gimnasio exclusivo',
+    imagen: '/lovable-uploads/building-b.jpg',
+    apartamentos: 16,
+    residentes: 32
+  },
+  {
+    id: '6',
+    nombre: 'Edificio F',
+    descripcion: 'Torre central con terraza panorámica',
+    imagen: '/lovable-uploads/building-c.jpg',
+    apartamentos: 24,
+    residentes: 49
+  },
+  {
+    id: '7',
+    nombre: 'Edificio G',
+    descripcion: 'Torre premium con piscina privada',
+    imagen: '/lovable-uploads/building-a.jpg',
+    apartamentos: 15,
+    residentes: 30
   }
 ];
 

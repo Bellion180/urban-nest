@@ -3,13 +3,16 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { buildings, residents } from '@/data/mockData';
-import { ArrowLeft, Phone, Mail, MapPin } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, MapPin, Wallet, User, Building } from 'lucide-react';
 import Header from './Header';
 
 const BuildingResidents = () => {
   const { buildingId } = useParams();
   const navigate = useNavigate();
+  const [selectedResident, setSelectedResident] = React.useState<string | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   
   const building = buildings.find(b => b.id === buildingId);
   const buildingResidents = residents.filter(r => r.edificio === buildingId);
@@ -19,7 +22,25 @@ const BuildingResidents = () => {
   }
 
   const handleResidentClick = (residentId: string) => {
-    navigate(`/resident/${residentId}`);
+    setSelectedResident(residentId);
+    setIsDialogOpen(true);
+  };
+
+  const handleOptionClick = (option: string) => {
+    if (selectedResident) {
+      switch (option) {
+        case 'financieros':
+          navigate(`/resident/${selectedResident}/financial`);
+          break;
+        case 'personal':
+          navigate(`/resident/${selectedResident}/personal`);
+          break;
+        case 'invi':
+          navigate(`/resident/${selectedResident}/invi`);
+          break;
+      }
+      setIsDialogOpen(false);
+    }
   };
 
   return (
@@ -105,6 +126,40 @@ const BuildingResidents = () => {
           </div>
         )}
       </main>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Selecciona una opción</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <Button
+              variant="outline"
+              className="w-full flex items-center justify-start gap-2"
+              onClick={() => handleOptionClick('financieros')}
+            >
+              <Wallet className="h-4 w-4" />
+              Información Financiera
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full flex items-center justify-start gap-2"
+              onClick={() => handleOptionClick('personal')}
+            >
+              <User className="h-4 w-4" />
+              Información Personal
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full flex items-center justify-start gap-2"
+              onClick={() => handleOptionClick('invi')}
+            >
+              <Building className="h-4 w-4" />
+              Información INVI
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

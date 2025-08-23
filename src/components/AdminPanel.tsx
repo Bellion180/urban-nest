@@ -52,14 +52,24 @@ const AdminPanel = () => {
       
       <main className="container mx-auto p-6">
         <div className="mb-6">
-          <Button 
-            variant="outline" 
-            onClick={() => navigate('/dashboard')}
-            className="mb-4"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Volver al Dashboard
-          </Button>
+          <div className="flex justify-between items-center mb-4">
+            <Button 
+              variant="outline" 
+              onClick={() => navigate('/dashboard')}
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Volver al Dashboard
+            </Button>
+
+            <Button 
+              variant="default"
+              onClick={() => navigate('/add-resident')}
+              className="bg-tlahuacali-red hover:bg-tlahuacali-red/90 text-white"
+            >
+              <Users className="mr-2 h-4 w-4" />
+              Agregar Residente
+            </Button>
+          </div>
           
           <h2 className="text-3xl font-bold text-foreground mb-2">Panel de Administración</h2>
           <p className="text-muted-foreground">Gestiona el estatus de los residentes</p>

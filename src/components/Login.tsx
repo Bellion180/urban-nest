@@ -81,6 +81,17 @@ const Login = () => {
               </Button>
             </form>
             
+            {/* Enlace de recuperación de contraseña */}
+            <div className="mt-4 text-center">
+              <button
+                type="button"
+                onClick={() => navigate('/forgot-password')}
+                className="text-sm text-tlahuacali-red hover:text-tlahuacali-red/80 underline"
+              >
+                ¿Olvidaste tu contraseña?
+              </button>
+            </div>
+            
             <div className="mt-6 text-sm text-muted-foreground">
               <p className="text-center">Usuarios de prueba:</p>
               <p className="text-center">Admin: admin / admin123</p>

@@ -6,9 +6,15 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import Login from "./components/Login";
+import ForgotPassword from "./components/ForgotPassword";
+import PasswordRecovery from "./components/PasswordRecovery";
 import Dashboard from "./components/Dashboard";
+import { SeleccionNivel } from "./components/SeleccionNivel";
 import BuildingResidents from "./components/BuildingResidents";
 import ResidentDetail from "./components/ResidentDetail";
+import ResidentFinancial from "./pages/ResidentFinancial";
+import ResidentPersonal from "./pages/ResidentPersonal";
+import ResidentInvi from "./pages/ResidentInvi";
 import AdminPanel from "./components/AdminPanel";
 import NotFound from "./pages/NotFound";
 import AddAssociate from './components/AddAssociate';
@@ -24,9 +30,15 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/password-recovery" element={<PasswordRecovery />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/building/:buildingId" element={<BuildingResidents />} />
+            <Route path="/building/:buildingId/niveles" element={<SeleccionNivel />} />
             <Route path="/resident/:residentId" element={<ResidentDetail />} />
+            <Route path="/resident/:id/financial" element={<ResidentFinancial />} />
+            <Route path="/resident/:id/personal" element={<ResidentPersonal />} />
+            <Route path="/resident/:id/invi" element={<ResidentInvi />} />
             <Route path="/admin" element={<AdminPanel />} />
             <Route path="/add-associate" element={<AddAssociate />} />"
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
