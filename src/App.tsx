@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import Login from "./components/Login";
+import ForgotPassword from "./components/ForgotPassword";
+import PasswordRecovery from "./components/PasswordRecovery";
 import Dashboard from "./components/Dashboard";
 import { SeleccionNivel } from "./components/SeleccionNivel";
 import BuildingResidents from "./components/BuildingResidents";
@@ -28,6 +30,8 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/password-recovery" element={<PasswordRecovery />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/building/:buildingId" element={<BuildingResidents />} />
             <Route path="/building/:buildingId/niveles" element={<SeleccionNivel />} />
