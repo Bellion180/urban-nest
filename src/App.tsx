@@ -9,12 +9,9 @@ import Login from "./components/Login";
 import Dashboard from "./components/Dashboard";
 import BuildingResidents from "./components/BuildingResidents";
 import ResidentDetail from "./components/ResidentDetail";
-<<<<<<< HEAD
-=======
 import ResidentFinancial from "./pages/ResidentFinancial";
 import ResidentPersonal from "./pages/ResidentPersonal";
 import ResidentInvi from "./pages/ResidentInvi";
->>>>>>> ef6d263 (Seleccion de datos)
 import AdminPanel from "./components/AdminPanel";
 import NotFound from "./pages/NotFound";
 
@@ -33,12 +30,9 @@ const App = () => (
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/building/:buildingId" element={<BuildingResidents />} />
             <Route path="/resident/:residentId" element={<ResidentDetail />} />
-<<<<<<< HEAD
-=======
             <Route path="/resident/:id/financial" element={<ResidentFinancial />} />
             <Route path="/resident/:id/personal" element={<ResidentPersonal />} />
             <Route path="/resident/:id/invi" element={<ResidentInvi />} />
->>>>>>> ef6d263 (Seleccion de datos)
             <Route path="/admin" element={<AdminPanel />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
