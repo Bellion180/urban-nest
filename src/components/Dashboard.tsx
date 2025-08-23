@@ -3,14 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { buildings } from '@/data/mockData';
-import { Building, Users, ArrowRight } from 'lucide-react';
+import { Building, Users, ArrowRight, Layers } from 'lucide-react';
 import Header from './Header';
 
 const Dashboard = () => {
   const navigate = useNavigate();
 
-  const handleBuildingSelect = (buildingId: string) => {
-    navigate(`/building/${buildingId}`);
+
+
+  const handleNivelesSelect = (buildingId: string) => {
+    navigate(`/building/${buildingId}/niveles`);
   };
 
   return (
@@ -61,12 +63,15 @@ const Dashboard = () => {
                   </div>
                 </div>
                 
+
+                
                 <Button
-                  onClick={() => handleBuildingSelect(building.id)}
-                  className="w-full bg-tlahuacali-red hover:bg-tlahuacali-red/90 text-white"
+                  onClick={() => handleNivelesSelect(building.id)}
+                  variant="outline"
+                  className="w-full border-tlahuacali-red text-tlahuacali-red hover:bg-tlahuacali-red hover:text-white"
                 >
-                  Ver Residentes
-                  <ArrowRight className="ml-2 h-4 w-4" />
+                  <Layers className="mr-2 h-4 w-4" />
+                  Seleccionar Niveles
                 </Button>
               </CardContent>
             </Card>

@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import Login from "./components/Login";
 import Dashboard from "./components/Dashboard";
+import { SeleccionNivel } from "./components/SeleccionNivel";
 import BuildingResidents from "./components/BuildingResidents";
 import ResidentDetail from "./components/ResidentDetail";
 import ResidentFinancial from "./pages/ResidentFinancial";
@@ -29,6 +30,7 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/building/:buildingId" element={<BuildingResidents />} />
+            <Route path="/building/:buildingId/niveles" element={<SeleccionNivel />} />
             <Route path="/resident/:residentId" element={<ResidentDetail />} />
             <Route path="/resident/:id/financial" element={<ResidentFinancial />} />
             <Route path="/resident/:id/personal" element={<ResidentPersonal />} />
