@@ -70,7 +70,7 @@ const AddAssociate = () => {
     e.preventDefault();
     if (isStepValid()) {
       toast({ title: "Socio registrado correctamente" });
-      navigate('/dashboard');
+      navigate('/admin');
     } else {
       toast({ title: "Completa los campos requeridos" });
     }
