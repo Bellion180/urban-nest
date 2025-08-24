@@ -63,7 +63,7 @@ const AdminPanel = () => {
 
             <Button 
               variant="default"
-              onClick={() => navigate('/add-resident')}
+              onClick={() => navigate('/add-associate')}
               className="bg-tlahuacali-red hover:bg-tlahuacali-red/90 text-white"
             >
               <Users className="mr-2 h-4 w-4" />
