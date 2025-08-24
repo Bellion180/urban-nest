@@ -5,6 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { residents as initialResidents } from '@/data/mockData';
+import { Resident } from '@/types/user';
+import ResidentDetailModal from './ResidentDetailModal';
+import PhotoModal from './PhotoModal';
 import { 
   ArrowLeft, 
   Search, 
@@ -21,6 +24,10 @@ const AdminPanel = () => {
   const navigate = useNavigate();
   const [residents, setResidents] = useState(initialResidents);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedResident, setSelectedResident] = useState<Resident | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
+  const [currentPhoto, setCurrentPhoto] = useState('');
 
   const filteredResidents = residents.filter(resident =>
     resident.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -44,6 +51,30 @@ const AdminPanel = () => {
       }
       return resident;
     }));
+  };
+
+  const handleViewResident = (resident: Resident) => {
+    setSelectedResident(resident);
+    setIsDetailModalOpen(true);
+  };
+
+  const handlePhotoClick = (photo: string) => {
+    setCurrentPhoto(photo);
+    setIsPhotoModalOpen(true);
+  };
+
+  const handlePhotoUpdate = (residentId: string, newPhoto: string) => {
+    setResidents(prev => prev.map(resident => {
+      if (resident.id === residentId) {
+        return { ...resident, foto: newPhoto };
+      }
+      return resident;
+    }));
+    
+    // Actualizar también el residente seleccionado si está abierto el modal
+    if (selectedResident && selectedResident.id === residentId) {
+      setSelectedResident({ ...selectedResident, foto: newPhoto });
+    }
   };
 
   return (
@@ -182,7 +213,7 @@ const AdminPanel = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => navigate(`/resident/${resident.id}`)}
+                      onClick={() => handleViewResident(resident)}
                     >
                       <Eye className="h-4 w-4 mr-1" />
                       Ver
@@ -222,6 +253,26 @@ const AdminPanel = () => {
           </CardContent>
         </Card>
       </main>
+      
+      {/* Modales */}
+      <ResidentDetailModal
+        resident={selectedResident}
+        isOpen={isDetailModalOpen}
+        onClose={() => setIsDetailModalOpen(false)}
+        onPhotoClick={handlePhotoClick}
+      />
+      
+      <PhotoModal
+        isOpen={isPhotoModalOpen}
+        onClose={() => setIsPhotoModalOpen(false)}
+        currentPhoto={currentPhoto}
+        residentName={selectedResident ? `${selectedResident.nombre} ${selectedResident.apellido}` : ''}
+        onPhotoUpdate={(newPhoto) => {
+          if (selectedResident) {
+            handlePhotoUpdate(selectedResident.id, newPhoto);
+          }
+        }}
+      />
     </div>
   );
 };
