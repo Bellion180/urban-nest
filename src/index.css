@@ -17,7 +17,7 @@ All colors MUST be HSL.
     --popover: 45 25% 92%;
     --popover-foreground: 0 0% 15%;
 
-    --primary: 0 75% 50%;
+    --primary: 359 98% 45%;
     --primary-foreground: 0 0% 98%;
 
     --secondary: 45 20% 85%;
@@ -34,10 +34,10 @@ All colors MUST be HSL.
 
     --border: 45 15% 80%;
     --input: 45 15% 80%;
-    --ring: 0 75% 50%;
+    --ring: 359 98% 45%;
 
     /* TLAHUACALI Custom Colors */
-    --tlahuacali-red: 0 75% 50%;
+    --tlahuacali-red: 359 98% 45%;
     --tlahuacali-cream: 45 25% 92%;
     --tlahuacali-beige: 45 15% 88%;
     --success: 120 45% 45%;
