@@ -5,12 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { buildings, residents } from '@/data/mockData';
+import { useAuth } from '@/contexts/AuthContext';
 import { ArrowLeft, Phone, Mail, MapPin, Wallet, User, Building } from 'lucide-react';
 import Header from './Header';
 
 const BuildingResidents = () => {
   const { buildingId } = useParams();
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
   const [selectedResident, setSelectedResident] = React.useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   
@@ -30,13 +32,17 @@ const BuildingResidents = () => {
     if (selectedResident) {
       switch (option) {
         case 'financieros':
-          navigate(`/resident/${selectedResident}/financial`);
+          if (isAdmin) {
+            navigate(`/resident/${selectedResident}/financial`);
+          }
           break;
         case 'personal':
           navigate(`/resident/${selectedResident}/personal`);
           break;
         case 'invi':
-          navigate(`/resident/${selectedResident}/invi`);
+          if (isAdmin) {
+            navigate(`/resident/${selectedResident}/invi`);
+          }
           break;
       }
       setIsDialogOpen(false);
@@ -133,14 +139,16 @@ const BuildingResidents = () => {
             <DialogTitle>Selecciona una opción</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <Button
-              variant="outline"
-              className="w-full flex items-center justify-start gap-2"
-              onClick={() => handleOptionClick('financieros')}
-            >
-              <Wallet className="h-4 w-4" />
-              Información Financiera
-            </Button>
+            {isAdmin && (
+              <Button
+                variant="outline"
+                className="w-full flex items-center justify-start gap-2"
+                onClick={() => handleOptionClick('financieros')}
+              >
+                <Wallet className="h-4 w-4" />
+                Información Financiera
+              </Button>
+            )}
             <Button
               variant="outline"
               className="w-full flex items-center justify-start gap-2"
@@ -149,14 +157,16 @@ const BuildingResidents = () => {
               <User className="h-4 w-4" />
               Información Personal
             </Button>
-            <Button
-              variant="outline"
-              className="w-full flex items-center justify-start gap-2"
-              onClick={() => handleOptionClick('invi')}
-            >
-              <Building className="h-4 w-4" />
-              Información INVI
-            </Button>
+            {isAdmin && (
+              <Button
+                variant="outline"
+                className="w-full flex items-center justify-start gap-2"
+                onClick={() => handleOptionClick('invi')}
+              >
+                <Building className="h-4 w-4" />
+                Información INVI
+              </Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>
