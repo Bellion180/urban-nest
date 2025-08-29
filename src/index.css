@@ -109,4 +109,153 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Mobile-first responsive utilities */
+  .container {
+    @apply px-4 sm:px-6 lg:px-8;
+  }
+
+  /* Text scaling for mobile */
+  .text-responsive-sm {
+    @apply text-sm sm:text-base;
+  }
+
+  .text-responsive-base {
+    @apply text-base sm:text-lg;
+  }
+
+  .text-responsive-lg {
+    @apply text-lg sm:text-xl;
+  }
+
+  .text-responsive-xl {
+    @apply text-xl sm:text-2xl;
+  }
+
+  .text-responsive-2xl {
+    @apply text-2xl sm:text-3xl;
+  }
+
+  /* Mobile padding adjustments */
+  .mobile-p {
+    @apply p-2 sm:p-4 lg:p-6;
+  }
+
+  .mobile-px {
+    @apply px-2 sm:px-4 lg:px-6;
+  }
+
+  .mobile-py {
+    @apply py-2 sm:py-4 lg:py-6;
+  }
+
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Touch optimization */
+  .touch-optimized {
+    touch-action: manipulation;
+  }
+
+  /* Loading animation */
+  @keyframes loading {
+    0% { width: 0%; }
+    50% { width: 100%; }
+    100% { width: 0%; }
+  }
+
+  /* Smooth transitions */
+  * {
+    transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+  }
+
+  /* Fast carousel transitions */
+  .embla {
+    transition: transform 100ms ease-out !important;
+  }
+
+  .embla__slide {
+    transition: opacity 50ms ease-out !important;
+  }
+
+  .embla__container {
+    transition: transform 100ms ease-out !important;
+  }
+
+  /* Override any slow carousel animations */
+  [data-embla] {
+    transition: transform 100ms ease-out !important;
+  }
+
+  [data-embla] * {
+    transition-duration: 100ms !important;
+  }
+
+  /* Smooth carousel without animations */
+  .embla {
+    transition: none !important;
+  }
+
+  .embla__container {
+    transition: none !important;
+  }
+
+  .embla__slide {
+    transition: none !important;
+  }
+
+  /* Instant hover effects for carousels */
+  .carousel-card {
+    transition: box-shadow 150ms ease-out, transform 150ms ease-out !important;
+  }
+
+  .carousel-card:hover {
+    transform: translateY(-2px);
+  }
+
+  /* Mobile tap targets */
+  button, [role="button"], input[type="submit"], input[type="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Focus visible for accessibility */
+  .focus-visible:focus {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  /* Disable zoom on input focus (iOS) */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="url"],
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  @media screen and (max-width: 768px) {
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="number"],
+    input[type="tel"],
+    input[type="url"],
+    select,
+    textarea {
+      font-size: 16px;
+    }
+  }
 }

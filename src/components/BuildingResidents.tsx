@@ -53,71 +53,72 @@ const BuildingResidents = () => {
     <div className="min-h-screen bg-background">
       <Header />
       
-      <main className="container mx-auto p-6">
+      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
         <div className="mb-6">
           <Button 
             variant="outline" 
             onClick={() => navigate('/dashboard')}
-            className="mb-4"
+            className="mb-4 text-sm sm:text-base"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Volver al Dashboard
+            <span className="hidden sm:inline">Volver al Dashboard</span>
+            <span className="sm:hidden">Volver</span>
           </Button>
           
-          <h2 className="text-3xl font-bold text-foreground mb-2">{building.nombre}</h2>
-          <p className="text-muted-foreground">{building.descripcion}</p>
+          <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">{building.nombre}</h2>
+          <p className="text-sm sm:text-base text-muted-foreground">{building.descripcion}</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
           {buildingResidents.map((resident) => (
             <Card 
               key={resident.id} 
               className="bg-tlahuacali-cream hover:shadow-lg transition-shadow duration-300 cursor-pointer"
               onClick={() => handleResidentClick(resident.id)}
             >
-              <CardContent className="p-6">
-                <div className="flex items-start space-x-4">
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-start space-y-3 sm:space-y-0 sm:space-x-4">
                   <img 
                     src={resident.foto} 
                     alt={`${resident.nombre} ${resident.apellido}`}
-                    className="w-16 h-16 rounded-full object-cover"
+                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover mx-auto sm:mx-0 flex-shrink-0"
                   />
                   
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-semibold text-foreground">
+                  <div className="flex-1 text-center sm:text-left min-w-0">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2 gap-2">
+                      <h3 className="font-semibold text-foreground text-sm sm:text-base truncate">
                         {resident.nombre} {resident.apellido}
                       </h3>
                       <Badge 
                         variant={resident.estatus === 'activo' ? 'default' : 'destructive'}
-                        className={resident.estatus === 'activo' 
+                        className={`text-xs flex-shrink-0 ${resident.estatus === 'activo' 
                           ? 'bg-success text-white' 
                           : 'bg-destructive text-white'
-                        }
+                        }`}
                       >
                         {resident.estatus}
                       </Badge>
                     </div>
                     
-                    <div className="space-y-2 text-sm text-muted-foreground">
-                      <div className="flex items-center space-x-2">
-                        <MapPin className="h-4 w-4" />
+                    <div className="space-y-2 text-xs sm:text-sm text-muted-foreground">
+                      <div className="flex items-center justify-center sm:justify-start space-x-2">
+                        <MapPin className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
                         <span>Apartamento {resident.apartamento}</span>
                       </div>
                       
-                      <div className="flex items-center space-x-2">
-                        <Phone className="h-4 w-4" />
-                        <span>{resident.telefono}</span>
+                      <div className="flex items-center justify-center sm:justify-start space-x-2">
+                        <Phone className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                        <span className="truncate">{resident.telefono}</span>
                       </div>
                       
-                      <div className="flex items-center space-x-2">
-                        <Mail className="h-4 w-4" />
-                        <span className="truncate">{resident.email}</span>
+                      <div className="flex items-center justify-center sm:justify-start space-x-2">
+                        <Mail className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                        <span className="truncate text-xs">{resident.email}</span>
                       </div>
                     </div>
                     
-                    <div className="mt-3 text-xs text-muted-foreground">
-                      <p>{resident.profesion}</p>
+                    <div className="mt-3 text-xs text-center sm:text-left text-muted-foreground">
+                      <p className="truncate">{resident.profesion}</p>
                     </div>
                   </div>
                 </div>
@@ -128,21 +129,24 @@ const BuildingResidents = () => {
         
         {buildingResidents.length === 0 && (
           <div className="text-center py-12">
-            <p className="text-muted-foreground">No hay residentes registrados en este edificio</p>
+            <div className="text-muted-foreground">
+              <Building className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p className="text-sm sm:text-base">No hay residentes registrados en este edificio</p>
+            </div>
           </div>
         )}
       </main>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="w-[90vw] max-w-md mx-auto">
           <DialogHeader>
-            <DialogTitle>Selecciona una opción</DialogTitle>
+            <DialogTitle className="text-base sm:text-lg">Selecciona una opción</DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-3 sm:gap-4 py-4">
             {isAdmin && (
               <Button
                 variant="outline"
-                className="w-full flex items-center justify-start gap-2"
+                className="w-full flex items-center justify-start gap-2 text-sm sm:text-base py-2 sm:py-3"
                 onClick={() => handleOptionClick('financieros')}
               >
                 <Wallet className="h-4 w-4" />
@@ -151,7 +155,7 @@ const BuildingResidents = () => {
             )}
             <Button
               variant="outline"
-              className="w-full flex items-center justify-start gap-2"
+              className="w-full flex items-center justify-start gap-2 text-sm sm:text-base py-2 sm:py-3"
               onClick={() => handleOptionClick('personal')}
             >
               <User className="h-4 w-4" />
@@ -160,7 +164,7 @@ const BuildingResidents = () => {
             {isAdmin && (
               <Button
                 variant="outline"
-                className="w-full flex items-center justify-start gap-2"
+                className="w-full flex items-center justify-start gap-2 text-sm sm:text-base py-2 sm:py-3"
                 onClick={() => handleOptionClick('invi')}
               >
                 <Building className="h-4 w-4" />

@@ -84,17 +84,18 @@ export const SeleccionNivel = () => {
     <div className="min-h-screen bg-background">
       <Header />
       
-      <main className="container mx-auto p-6">
-        <div className="mb-8">
+      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+        <div className="mb-6 sm:mb-8">
           <div className="flex items-center gap-4 mb-4">
             <Button
               onClick={handleBackToDashboard}
               variant="outline"
               size="sm"
-              className="border-tlahuacali-red text-tlahuacali-red hover:bg-tlahuacali-red hover:text-white"
+              className="border-tlahuacali-red text-tlahuacali-red hover:bg-tlahuacali-red hover:text-white text-sm sm:text-base"
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Volver al Dashboard
+              <span className="hidden sm:inline">Volver al Dashboard</span>
+              <span className="sm:hidden">Volver</span>
             </Button>
           </div>
           
@@ -106,11 +107,62 @@ export const SeleccionNivel = () => {
           </p>
         </div>
 
-        <div className="relative px-12">
+        {/* Mobile: Stack cards vertically */}
+        <div className="block sm:hidden space-y-4">
+          {niveles.map((nivel) => (
+            <Card 
+              key={nivel.id}
+              className={`carousel-card bg-tlahuacali-cream hover:shadow-lg overflow-hidden cursor-pointer ${
+                selectedNivel === nivel.id ? 'ring-2 ring-tlahuacali-red' : ''
+              }`}
+              onClick={() => handleNivelSelect(nivel.id)}
+            >
+              <div className="aspect-video relative">
+                <img 
+                  src={nivel.imagen} 
+                  alt={`Nivel ${nivel.numero}`}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute top-2 left-2 bg-tlahuacali-red text-white px-2 py-1 rounded-full text-xs font-medium">
+                  Nivel {nivel.numero}
+                </div>
+              </div>
+            
+              <CardContent className="p-4">
+                <h3 className="text-lg font-semibold text-foreground mb-2">
+                  {nivel.nombre}
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  {nivel.descripcion}
+                </p>
+                
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center space-x-3 text-xs text-muted-foreground">
+                    <div className="flex items-center space-x-1">
+                      <Building className="h-3 w-3" />
+                      <span>{nivel.apartamentos} apts</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <Users className="h-3 w-3" />
+                      <span>{nivel.residentes} residentes</span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Desktop/Tablet: Use carousel */}
+        <div className="hidden sm:block relative px-12">
           <Carousel
             opts={{
               align: "start",
               loop: true,
+              skipSnaps: false,
+              dragFree: false,
+              containScroll: "trimSnaps",
+              duration: 0, // Sin animación
             }}
             className="w-full"
           >
@@ -118,7 +170,7 @@ export const SeleccionNivel = () => {
               {niveles.map((nivel) => (
                 <CarouselItem key={nivel.id} className="pl-2 md:pl-4 md:basis-1/2 lg:basis-1/3">
                   <Card 
-                    className={`bg-tlahuacali-cream hover:shadow-lg transition-all duration-300 overflow-hidden cursor-pointer ${
+                    className={`carousel-card bg-tlahuacali-cream hover:shadow-lg overflow-hidden cursor-pointer ${
                       selectedNivel === nivel.id ? 'ring-2 ring-tlahuacali-red' : ''
                     }`}
                     onClick={() => handleNivelSelect(nivel.id)}
@@ -171,8 +223,8 @@ export const SeleccionNivel = () => {
                 </CarouselItem>
               ))}
             </CarouselContent>
-            <CarouselPrevious className="bg-tlahuacali-red text-white hover:bg-tlahuacali-red/90" />
-            <CarouselNext className="bg-tlahuacali-red text-white hover:bg-tlahuacali-red/90" />
+            <CarouselPrevious className="hidden sm:flex bg-tlahuacali-red text-white hover:bg-tlahuacali-red/90 border-tlahuacali-red" />
+            <CarouselNext className="hidden sm:flex bg-tlahuacali-red text-white hover:bg-tlahuacali-red/90 border-tlahuacali-red" />
           </Carousel>
         </div>
 

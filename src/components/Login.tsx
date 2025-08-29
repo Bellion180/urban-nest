@@ -33,17 +33,18 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-sm sm:max-w-md">
         {/* Header */}
-        <div className="bg-tlahuacali-red text-white p-4 rounded-t-lg text-center">
-          <h1 className="text-2xl font-bold">TLAHUACALI</h1>
+        <div className="bg-tlahuacali-red text-white p-4 sm:p-6 rounded-t-lg text-center">
+          <h1 className="text-xl sm:text-2xl font-bold">TLAHUACALI</h1>
+          <p className="text-xs sm:text-sm mt-1 opacity-90">Sistema de Administración</p>
         </div>
         
         <Card className="rounded-t-none bg-tlahuacali-cream">
-          <CardHeader className="text-center">
-            <CardTitle className="text-foreground">Iniciar Sesión</CardTitle>
+          <CardHeader className="text-center px-4 sm:px-6 py-4 sm:py-6">
+            <CardTitle className="text-lg sm:text-xl text-foreground">Iniciar Sesión</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 sm:px-6 pb-6">
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <div className="relative">
@@ -53,7 +54,7 @@ const Login = () => {
                     placeholder="Usuario"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    className="pl-10 bg-white"
+                    className="pl-10 bg-white text-sm sm:text-base"
                     required
                   />
                 </div>
@@ -67,7 +68,7 @@ const Login = () => {
                     placeholder="Contraseña"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10 bg-white"
+                    className="pl-10 bg-white text-sm sm:text-base"
                     required
                   />
                 </div>
@@ -75,27 +76,41 @@ const Login = () => {
               
               <Button 
                 type="submit" 
-                className="w-full bg-tlahuacali-red hover:bg-tlahuacali-red/90 text-white"
+                className="w-full bg-tlahuacali-red hover:bg-tlahuacali-red/90 text-white text-sm sm:text-base py-2 sm:py-3"
               >
-                Acceder
+                Iniciar Sesión
               </Button>
             </form>
             
-            {/* Enlace de recuperación de contraseña */}
             <div className="mt-4 text-center">
-              <button
-                type="button"
+              <Button
+                variant="link"
                 onClick={() => navigate('/forgot-password')}
-                className="text-sm text-tlahuacali-red hover:text-tlahuacali-red/80 underline"
+                className="text-tlahuacali-red hover:text-tlahuacali-red/80 text-xs sm:text-sm p-0"
               >
                 ¿Olvidaste tu contraseña?
-              </button>
+              </Button>
             </div>
             
-            <div className="mt-6 text-sm text-muted-foreground">
-              <p className="text-center">Usuarios de prueba:</p>
-              <p className="text-center">Admin: admin / admin123</p>
-              <p className="text-center">Usuario: maria.gonzalez / user123</p>
+            {/* Demo Credentials */}
+            <div className="mt-6 p-3 sm:p-4 bg-muted rounded-lg">
+              <h3 className="text-xs sm:text-sm font-semibold text-foreground mb-2">
+                Credenciales de prueba:
+              </h3>
+              <div className="space-y-1 text-xs text-muted-foreground">
+                <div className="flex flex-col sm:flex-row sm:justify-between">
+                  <span className="font-medium">Admin:</span>
+                  <span>admin / admin123</span>
+                </div>
+                <div className="flex flex-col sm:flex-row sm:justify-between">
+                  <span className="font-medium">Usuario:</span>
+                  <span>user / user123</span>
+                </div>
+                <div className="flex flex-col sm:flex-row sm:justify-between">
+                  <span className="font-medium">Residente:</span>
+                  <span>resident / resident123</span>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
