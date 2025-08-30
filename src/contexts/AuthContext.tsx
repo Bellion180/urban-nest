@@ -1,13 +1,21 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User } from '@/types/user';
-import { users } from '@/data/mockData';
+import { authService } from '@/services/api';
+
+interface User {
+  id: string;
+  email: string;
+  nombre: string;
+  apellido: string;
+  role: 'ADMIN' | 'USER';
+}
 
 interface AuthContextType {
   currentUser: User | null;
-  login: (username: string, password: string) => boolean;
+  login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -22,27 +30,43 @@ export const useAuth = () => {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('currentUser');
-    if (savedUser) {
-      setCurrentUser(JSON.parse(savedUser));
-    }
+    const initAuth = async () => {
+      const token = localStorage.getItem('authToken');
+      if (token) {
+        try {
+          const userData = await authService.verifyToken();
+          setCurrentUser(userData.user);
+        } catch (error) {
+          console.error('Error al verificar token:', error);
+          authService.logout();
+        }
+      }
+      setLoading(false);
+    };
+
+    initAuth();
   }, []);
 
-  const login = (username: string, password: string): boolean => {
-    const user = users.find(u => u.username === username && u.password === password);
-    if (user) {
-      setCurrentUser(user);
-      localStorage.setItem('currentUser', JSON.stringify(user));
+  const login = async (email: string, password: string): Promise<boolean> => {
+    try {
+      setLoading(true);
+      const response = await authService.login(email, password);
+      setCurrentUser(response.user);
       return true;
+    } catch (error) {
+      console.error('Error al iniciar sesión:', error);
+      return false;
+    } finally {
+      setLoading(false);
     }
-    return false;
   };
 
   const logout = () => {
     setCurrentUser(null);
-    localStorage.removeItem('currentUser');
+    authService.logout();
   };
 
   const value = {
@@ -50,7 +74,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     login,
     logout,
     isAuthenticated: !!currentUser,
-    isAdmin: currentUser?.role === 'admin'
+    isAdmin: currentUser?.role === 'ADMIN',
+    loading,
   };
 
   return (

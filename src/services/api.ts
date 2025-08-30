@@ -1,0 +1,270 @@
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+
+// Función para obtener el token de autenticación
+const getAuthToken = () => {
+  return localStorage.getItem('authToken');
+};
+
+// Función para hacer peticiones autenticadas
+const authenticatedFetch = async (url: string, options: RequestInit = {}) => {
+  const token = getAuthToken();
+  
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(token && { Authorization: `Bearer ${token}` }),
+    ...options.headers,
+  };
+
+  const response = await fetch(`${API_BASE_URL}${url}`, {
+    ...options,
+    headers,
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Error de red' }));
+    throw new Error(error.message || `HTTP error! status: ${response.status}`);
+  }
+
+  return response;
+};
+
+// ===== SERVICIOS DE AUTENTICACIÓN =====
+export const authService = {
+  // Iniciar sesión
+  login: async (email: string, password: string) => {
+    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Error al iniciar sesión');
+    }
+
+    const data = await response.json();
+    
+    // Guardar token en localStorage
+    if (data.token) {
+      localStorage.setItem('authToken', data.token);
+    }
+
+    return data;
+  },
+
+  // Registrar usuario
+  register: async (userData: {
+    email: string;
+    password: string;
+    nombre: string;
+    apellido: string;
+    role?: 'ADMIN' | 'USER';
+  }) => {
+    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(userData),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Error al registrar usuario');
+    }
+
+    return response.json();
+  },
+
+  // Verificar token
+  verifyToken: async () => {
+    const response = await authenticatedFetch('/auth/verify');
+    return response.json();
+  },
+
+  // Cerrar sesión
+  logout: () => {
+    localStorage.removeItem('authToken');
+  },
+};
+
+// ===== SERVICIOS DE EDIFICIOS =====
+export const buildingService = {
+  // Obtener todos los edificios
+  getAll: async () => {
+    const response = await authenticatedFetch('/buildings');
+    return response.json();
+  },
+
+  // Crear edificio
+  create: async (buildingData: {
+    name: string;
+    address?: string;
+    description?: string;
+  }) => {
+    const response = await authenticatedFetch('/buildings', {
+      method: 'POST',
+      body: JSON.stringify(buildingData),
+    });
+    return response.json();
+  },
+
+  // Actualizar edificio
+  update: async (id: string, buildingData: {
+    name?: string;
+    address?: string;
+    description?: string;
+  }) => {
+    const response = await authenticatedFetch(`/buildings/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(buildingData),
+    });
+    return response.json();
+  },
+
+  // Eliminar edificio
+  delete: async (id: string) => {
+    const response = await authenticatedFetch(`/buildings/${id}`, {
+      method: 'DELETE',
+    });
+    return response.json();
+  },
+
+  // Agregar piso
+  addFloor: async (buildingId: string, floorData: {
+    number: number;
+    name?: string;
+  }) => {
+    const response = await authenticatedFetch(`/buildings/${buildingId}/floors`, {
+      method: 'POST',
+      body: JSON.stringify(floorData),
+    });
+    return response.json();
+  },
+
+  // Agregar apartamento
+  addApartment: async (floorId: string, apartmentData: {
+    number: string;
+    area?: number;
+    bedrooms?: number;
+    bathrooms?: number;
+  }) => {
+    const response = await authenticatedFetch(`/buildings/floors/${floorId}/apartments`, {
+      method: 'POST',
+      body: JSON.stringify(apartmentData),
+    });
+    return response.json();
+  },
+};
+
+// ===== SERVICIOS DE RESIDENTES =====
+export const residentService = {
+  // Obtener todos los residentes
+  getAll: async () => {
+    const response = await authenticatedFetch('/residents');
+    return response.json();
+  },
+
+  // Obtener residente por ID
+  getById: async (id: string) => {
+    const response = await authenticatedFetch(`/residents/${id}`);
+    return response.json();
+  },
+
+  // Crear residente
+  create: async (residentData: {
+    nombre: string;
+    apellido: string;
+    email?: string;
+    telefono?: string;
+    fechaNacimiento?: string;
+    profesion?: string;
+    estadoCivil?: string;
+    numeroEmergencia?: string;
+    apartmentId: string;
+    vehiculos?: string;
+    mascotas?: string;
+    observaciones?: string;
+    cuotaMantenimiento?: number;
+    photo?: File;
+  }) => {
+    const formData = new FormData();
+    
+    // Agregar todos los campos al FormData
+    Object.entries(residentData).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        if (key === 'photo' && value instanceof File) {
+          formData.append('photo', value);
+        } else {
+          formData.append(key, value.toString());
+        }
+      }
+    });
+
+    const response = await authenticatedFetch('/residents', {
+      method: 'POST',
+      headers: {
+        // No establecer Content-Type para FormData
+      },
+      body: formData,
+    });
+    return response.json();
+  },
+
+  // Actualizar residente
+  update: async (id: string, residentData: any) => {
+    const response = await authenticatedFetch(`/residents/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(residentData),
+    });
+    return response.json();
+  },
+
+  // Eliminar residente
+  delete: async (id: string) => {
+    const response = await authenticatedFetch(`/residents/${id}`, {
+      method: 'DELETE',
+    });
+    return response.json();
+  },
+};
+
+// ===== SERVICIOS DE PAGOS =====
+export const paymentService = {
+  // Obtener pagos de un residente
+  getByResident: async (residentId: string) => {
+    const response = await authenticatedFetch(`/payments/resident/${residentId}`);
+    return response.json();
+  },
+
+  // Crear pago
+  create: async (paymentData: {
+    residentId: string;
+    amount: number;
+    type: 'MANTENIMIENTO' | 'MULTA' | 'OTRO';
+    description?: string;
+    date?: string;
+  }) => {
+    const response = await authenticatedFetch('/payments', {
+      method: 'POST',
+      body: JSON.stringify(paymentData),
+    });
+    return response.json();
+  },
+
+  // Obtener estadísticas de pagos
+  getStats: async () => {
+    const response = await authenticatedFetch('/payments/stats');
+    return response.json();
+  },
+};
+
+export default {
+  authService,
+  buildingService,
+  residentService,
+  paymentService,
+};

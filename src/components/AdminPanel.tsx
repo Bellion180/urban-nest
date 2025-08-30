@@ -8,6 +8,7 @@ import { residents as initialResidents } from '@/data/mockData';
 import { Resident } from '@/types/user';
 import ResidentDetailModal from './ResidentDetailModal';
 import SimplePhotoModal from './SimplePhotoModal';
+import BuildingManagement from './BuildingManagement';
 import { 
   ArrowLeft, 
   Search, 
@@ -16,7 +17,8 @@ import {
   UserX,
   Eye,
   Settings,
-  Plus
+  Plus,
+  Building
 } from 'lucide-react';
 import Header from './Header';
 import { toast } from '@/hooks/use-toast';
@@ -29,6 +31,7 @@ const AdminPanel = () => {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
   const [currentPhoto, setCurrentPhoto] = useState('');
+  const [showBuildingModal, setShowBuildingModal] = useState(false);
 
   const filteredResidents = residents.filter(resident =>
     resident.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -94,15 +97,27 @@ const AdminPanel = () => {
               <span className="sm:hidden">Volver</span>
             </Button>
 
-            <Button 
-              variant="default"
-              onClick={() => navigate('/add-associate')}
-              className="bg-tlahuacali-red hover:bg-tlahuacali-red/90 text-white w-fit"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              <span className="hidden sm:inline">Agregar Residente</span>
-              <span className="sm:hidden">Agregar</span>
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+              <Button 
+                variant="outline"
+                onClick={() => setShowBuildingModal(true)}
+                className="border-tlahuacali-red text-tlahuacali-red hover:bg-tlahuacali-red hover:text-white w-fit"
+              >
+                <Building className="mr-2 h-4 w-4" />
+                <span className="hidden sm:inline">Gestionar Edificios</span>
+                <span className="sm:hidden">Edificios</span>
+              </Button>
+
+              <Button 
+                variant="default"
+                onClick={() => navigate('/add-associate')}
+                className="bg-tlahuacali-red hover:bg-tlahuacali-red/90 text-white w-fit"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                <span className="hidden sm:inline">Agregar Residente</span>
+                <span className="sm:hidden">Agregar</span>
+              </Button>
+            </div>
           </div>
           
           <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">Panel de Administración</h2>
@@ -281,6 +296,11 @@ const AdminPanel = () => {
         photo={currentPhoto}
         isOpen={isPhotoModalOpen}
         onClose={() => setIsPhotoModalOpen(false)}
+      />
+
+      <BuildingManagement
+        isOpen={showBuildingModal}
+        onClose={() => setShowBuildingModal(false)}
       />
     </div>
   );

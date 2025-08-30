@@ -1,0 +1,147 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(RESIDENT)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relación con residentes si es admin
+  residents Resident[]
+
+  @@map("users")
+}
+
+model Building {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  image       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relaciones
+  floors    Floor[]
+  residents Resident[]
+
+  @@map("buildings")
+}
+
+model Floor {
+  id         String   @id @default(cuid())
+  name       String
+  number     Int
+  buildingId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relaciones
+  building   Building    @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  apartments Apartment[]
+
+  @@unique([buildingId, number])
+  @@map("floors")
+}
+
+model Apartment {
+  id       String   @id @default(cuid())
+  number   String
+  floorId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relaciones
+  floor     Floor      @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  residents Resident[]
+
+  @@unique([floorId, number])
+  @@map("apartments")
+}
+
+model Resident {
+  id                String   @id @default(cuid())
+  nombre            String
+  apellido          String
+  edad              Int?
+  email             String?
+  telefono          String?
+  fechaNacimiento   DateTime?
+  noPersonas        Int?
+  discapacidad      Boolean  @default(false)
+  profilePhoto      String?
+  estatus           Status   @default(ACTIVO)
+  hasKey            Boolean  @default(false)
+  registrationDate  DateTime @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Datos de ubicación
+  buildingId   String
+  apartmentId  String
+
+  // Datos financieros
+  deudaActual     Decimal @default(0.00) @db.Decimal(10, 2)
+  pagosRealizados Decimal @default(0.00) @db.Decimal(10, 2)
+
+  // Informe
+  informe String?
+
+  // Relaciones
+  building   Building   @relation(fields: [buildingId], references: [id])
+  apartment  Apartment  @relation(fields: [apartmentId], references: [id])
+  createdBy  User       @relation(fields: [createdById], references: [id])
+  createdById String
+
+  // Datos financieros detallados
+  payments Payment[]
+
+  @@map("residents")
+}
+
+model Payment {
+  id          String      @id @default(cuid())
+  amount      Decimal     @db.Decimal(10, 2)
+  type        PaymentType
+  description String?
+  date        DateTime    @default(now())
+  residentId  String
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relaciones
+  resident Resident @relation(fields: [residentId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+enum Role {
+  ADMIN
+  RESIDENT
+}
+
+enum Status {
+  ACTIVO
+  SUSPENDIDO
+  INACTIVO
+}
+
+enum PaymentType {
+  CUOTA_MANTENIMIENTO
+  MULTA
+  SERVICIOS_ADICIONALES
+  DEPOSITO_GARANTIA
+  OTROS
+}

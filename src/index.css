@@ -258,4 +258,43 @@ All colors MUST be HSL.
       font-size: 16px;
     }
   }
+
+  /* Photo upload styles for AddAssociate component */
+  .photo-upload-area {
+    @apply relative w-32 h-32 rounded-full border-2 border-dashed border-gray-300 
+           flex items-center justify-center bg-gray-50 hover:bg-gray-100 
+           transition-colors cursor-pointer;
+  }
+
+  .photo-preview {
+    @apply w-32 h-32 rounded-full object-cover border-4 border-tlahuacali-red/20;
+  }
+
+  .photo-remove-btn {
+    @apply absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 
+           hover:bg-red-600 transition-colors focus:outline-none focus:ring-2 
+           focus:ring-red-500 focus:ring-offset-2;
+  }
+
+  .photo-upload-btn {
+    @apply inline-flex items-center gap-2 px-4 py-2 bg-tlahuacali-red text-white 
+           rounded-md hover:bg-tlahuacali-red/90 cursor-pointer transition-colors 
+           focus:outline-none focus:ring-2 focus:ring-tlahuacali-red focus:ring-offset-2;
+  }
+
+  /* Mobile optimizations for photo upload */
+  @media (max-width: 640px) {
+    .photo-upload-section {
+      @apply flex flex-col items-center gap-3;
+    }
+    
+    .photo-preview,
+    .photo-upload-area {
+      @apply w-24 h-24;
+    }
+    
+    .photo-upload-btn {
+      @apply text-sm px-3 py-2;
+    }
+  }
 }

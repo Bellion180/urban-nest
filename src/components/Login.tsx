@@ -8,26 +8,39 @@ import { User, Lock } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 const Login = () => {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
     
-    if (login(username, password)) {
-      toast({
-        title: "Bienvenido",
-        description: "Has iniciado sesión exitosamente",
-      });
-      navigate('/dashboard');
-    } else {
+    try {
+      const success = await login(email, password);
+      if (success) {
+        toast({
+          title: "Bienvenido",
+          description: "Has iniciado sesión exitosamente",
+        });
+        navigate('/dashboard');
+      } else {
+        toast({
+          title: "Error",
+          description: "Email o contraseña incorrectos",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
       toast({
         title: "Error",
-        description: "Usuario o contraseña incorrectos",
+        description: "Error de conexión. Verifica que el servidor esté corriendo.",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -50,10 +63,10 @@ const Login = () => {
                 <div className="relative">
                   <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
-                    type="text"
-                    placeholder="Usuario"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    type="email"
+                    placeholder="Correo electrónico"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     className="pl-10 bg-white text-sm sm:text-base"
                     required
                   />
@@ -76,9 +89,10 @@ const Login = () => {
               
               <Button 
                 type="submit" 
-                className="w-full bg-tlahuacali-red hover:bg-tlahuacali-red/90 text-white text-sm sm:text-base py-2 sm:py-3"
+                disabled={isLoading}
+                className="w-full bg-tlahuacali-red hover:bg-tlahuacali-red/90 text-white text-sm sm:text-base py-2 sm:py-3 disabled:opacity-50"
               >
-                Iniciar Sesión
+                {isLoading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
               </Button>
             </form>
             
