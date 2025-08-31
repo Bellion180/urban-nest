@@ -21,9 +21,20 @@
 5. Crea una nueva base de datos llamada "urban_nest_db"
 
 ### Opción 3: Docker (Recomendado)
+
+**Usando Docker Compose (Recomendado)**:
+```bash
+# Iniciar MySQL en Docker
+npm run docker:up
+
+# Verificar que el contenedor está corriendo
+docker ps
+```
+
+**Comando manual de Docker**:
 ```bash
 # Crear contenedor MySQL
-docker run --name urban-nest-mysql -e MYSQL_ROOT_PASSWORD=rootpassword -e MYSQL_DATABASE=urban_nest_db -e MYSQL_USER=urban_nest_user -e MYSQL_PASSWORD=urban_nest_password -p 3306:3306 -d mysql:8.0
+docker run --name urban-nest-mysql -e MYSQL_ROOT_PASSWORD=c -e MYSQL_DATABASE=urban_nest_db -e MYSQL_USER=urban_nest_user -e MYSQL_PASSWORD=urban_nest_password -p 3306:3306 -d mysql:8.0
 
 # Verificar que el contenedor está corriendo
 docker ps
@@ -85,7 +96,7 @@ Agrega estos scripts a tu package.json:
 
 ```
 urban-nest/
-├── server/           # Backend Express.js
+├── server/          # Backend Express.js
 ├── src/             # Frontend React
 ├── prisma/          # Esquemas y migraciones de DB
 ├── .env             # Variables de entorno
