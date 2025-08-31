@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: urban-nest-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: c
+      MYSQL_DATABASE: urban_nest_db
+      MYSQL_USER: urban_nest_user
+      MYSQL_PASSWORD: urban_nest_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d
+    networks:
+      - urban-nest-network
+
+volumes:
+  mysql_data:
+    driver: local
+
+networks:
+  urban-nest-network:
+    driver: bridge
