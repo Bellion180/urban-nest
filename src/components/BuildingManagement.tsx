@@ -1,13 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Building, Plus, Trash2, Edit3, X, Save } from 'lucide-react';
+import { Building, Plus, Trash2, Edit3, X, Save, Loader2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { buildingsData as initialBuildingsData, BuildingData, FloorData, getTotalApartments } from '@/data/buildingsData';
+import { useAuth } from '@/contexts/AuthContext';
+import { buildingService } from '@/services/api';
+
+// Tipos locales para el componente
+interface FloorData {
+  id: string;
+  name: string;
+  number?: number;
+  apartments: string[];
+}
+
+interface BuildingData {
+  id: string;
+  name: string;
+  description: string;
+  image?: string;
+  floors: FloorData[];
+  totalApartments?: number;
+  totalResidents?: number;
+}
+
+// Helper function
+const getTotalApartments = (building: BuildingData) => 
+  building.floors.reduce((total, floor) => total + floor.apartments.length, 0);
 
 interface BuildingManagementProps {
   isOpen: boolean;
@@ -15,8 +38,38 @@ interface BuildingManagementProps {
 }
 
 const BuildingManagement: React.FC<BuildingManagementProps> = ({ isOpen, onClose }) => {
-  // Estado inicial con edificios existentes del sistema
-  const [buildings, setBuildings] = useState<BuildingData[]>(initialBuildingsData);
+  const { currentUser } = useAuth();
+  const isAdmin = currentUser?.role === 'ADMIN';
+  
+  const [buildings, setBuildings] = useState<BuildingData[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Cargar edificios desde la API
+  const loadBuildings = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await buildingService.getAll();
+      setBuildings(data);
+    } catch (err) {
+      setError('Error al cargar los edificios');
+      console.error('Error loading buildings:', err);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los edificios",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      loadBuildings();
+    }
+  }, [isOpen]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingBuilding, setEditingBuilding] = useState<BuildingData | null>(null);
   const [editForm, setEditForm] = useState<{
@@ -54,28 +107,42 @@ const BuildingManagement: React.FC<BuildingManagementProps> = ({ isOpen, onClose
     });
   };
 
-  const saveEditing = () => {
-    if (!editingBuilding) return;
+  const saveEditing = async () => {
+    if (!editingBuilding || !isAdmin) return;
 
-    setBuildings(prev => prev.map(building => 
-      building.id === editingBuilding.id 
-        ? { ...building, name: editForm.name, description: editForm.description, floors: editForm.floors }
-        : building
-    ));
+    try {
+      setLoading(true);
+      await buildingService.update(editingBuilding.id, {
+        name: editForm.name,
+        description: editForm.description,
+      });
 
-    toast({
-      title: "Edificio actualizado",
-      description: `${editForm.name} ha sido actualizado correctamente`
-    });
+      toast({
+        title: "Edificio actualizado",
+        description: `${editForm.name} ha sido actualizado correctamente`
+      });
 
-    cancelEditing();
+      // Recargar edificios para mostrar los cambios
+      await loadBuildings();
+      cancelEditing();
+    } catch (error) {
+      console.error('Error updating building:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el edificio",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const addFloorToEdit = () => {
     const newFloorNumber = editForm.floors.length + 1;
     const newFloor: FloorData = {
-      id: `piso-${newFloorNumber}`,
+      id: `temp-piso-${Date.now()}`, // ID temporal para el frontend
       name: `Piso ${newFloorNumber}`,
+      number: newFloorNumber,
       apartments: [`${newFloorNumber}01`, `${newFloorNumber}02`, `${newFloorNumber}03`, `${newFloorNumber}04`]
     };
     setEditForm(prev => ({
@@ -100,7 +167,9 @@ const BuildingManagement: React.FC<BuildingManagementProps> = ({ isOpen, onClose
     }));
   };
 
-  const handleAddBuilding = () => {
+  const handleAddBuilding = async () => {
+    if (!isAdmin) return;
+    
     if (!newBuilding.name || !newBuilding.description || newBuilding.floors < 1 || newBuilding.apartmentsPerFloor < 1) {
       toast({
         title: "Error",
@@ -110,45 +179,84 @@ const BuildingManagement: React.FC<BuildingManagementProps> = ({ isOpen, onClose
       return;
     }
 
-    const floors: FloorData[] = [];
-    for (let i = 1; i <= newBuilding.floors; i++) {
-      const apartments: string[] = [];
-      for (let j = 1; j <= newBuilding.apartmentsPerFloor; j++) {
-        apartments.push(`${i}${j.toString().padStart(2, '0')}`);
+    try {
+      setLoading(true);
+      
+      // Crear estructura de pisos para enviar al backend
+      const floors: FloorData[] = [];
+      for (let i = 1; i <= newBuilding.floors; i++) {
+        const apartments: string[] = [];
+        for (let j = 1; j <= newBuilding.apartmentsPerFloor; j++) {
+          apartments.push(`${i}${j.toString().padStart(2, '0')}`);
+        }
+        floors.push({
+          id: `temp-piso-${i}`, // ID temporal, el backend asignará el real
+          name: `Piso ${i}`,
+          number: i,
+          apartments
+        });
       }
-      floors.push({
-        id: `piso-${i}`,
-        name: `Piso ${i}`,
-        apartments
+
+      // Crear el edificio en el backend con pisos incluidos
+      await buildingService.create({
+        name: newBuilding.name,
+        description: newBuilding.description,
+        floors: floors.map(floor => ({
+          name: floor.name,
+          number: floor.number,
+          apartments: floor.apartments
+        }))
       });
+
+      toast({
+        title: "Edificio agregado",
+        description: `${newBuilding.name} ha sido agregado correctamente`
+      });
+
+      // Recargar edificios y cerrar el formulario
+      await loadBuildings();
+      setNewBuilding({ name: '', description: '', floors: 1, apartmentsPerFloor: 4 });
+      setShowAddForm(false);
+      
+    } catch (error) {
+      console.error('Error creating building:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo agregar el edificio",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
     }
-
-    const building: BuildingData = {
-      id: `edificio-${Date.now()}`,
-      name: newBuilding.name,
-      description: newBuilding.description,
-      image: '/lovable-uploads/building-a.jpg',
-      floors
-    };
-
-    setBuildings(prev => [...prev, building]);
-    setNewBuilding({ name: '', description: '', floors: 1, apartmentsPerFloor: 4 });
-    setShowAddForm(false);
-    
-    toast({
-      title: "Edificio agregado",
-      description: `${building.name} ha sido agregado correctamente`
-    });
   };
 
-  const handleDeleteBuilding = (buildingId: string) => {
-    const building = buildings.find(b => b.id === buildingId);
-    setBuildings(prev => prev.filter(b => b.id !== buildingId));
+  const handleDeleteBuilding = async (buildingId: string) => {
+    if (!isAdmin) return;
     
-    toast({
-      title: "Edificio eliminado",
-      description: `${building?.name} ha sido eliminado`
-    });
+    const building = buildings.find(b => b.id === buildingId);
+    
+    try {
+      setLoading(true);
+      await buildingService.delete(buildingId);
+      
+      toast({
+        title: "Edificio eliminado",
+        description: `${building?.name} ha sido eliminado`
+      });
+
+      // Recargar edificios
+      await loadBuildings();
+      
+    } catch (error) {
+      console.error('Error deleting building:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar el edificio",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -162,17 +270,42 @@ const BuildingManagement: React.FC<BuildingManagementProps> = ({ isOpen, onClose
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Add Building Button */}
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold">Edificios Registrados</h3>
-            <Button
-              onClick={() => setShowAddForm(true)}
-              className="bg-tlahuacali-red hover:bg-tlahuacali-red/90 text-white"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Agregar Edificio
-            </Button>
-          </div>
+          {/* Loading State */}
+          {loading && (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-tlahuacali-red" />
+              <span className="ml-2 text-muted-foreground">Cargando edificios...</span>
+            </div>
+          )}
+
+          {/* Error State */}
+          {error && (
+            <div className="text-center py-8 text-red-600">
+              <p>{error}</p>
+              <Button 
+                variant="outline" 
+                onClick={loadBuildings}
+                className="mt-2"
+              >
+                Reintentar
+              </Button>
+            </div>
+          )}
+
+          {!loading && !error && (
+            <>
+              {/* Add Building Button */}
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold">Edificios Registrados</h3>
+                <Button
+                  onClick={() => isAdmin && setShowAddForm(true)}
+                  className={`bg-tlahuacali-red hover:bg-tlahuacali-red/90 text-white ${!isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  disabled={!isAdmin}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Agregar Edificio
+                </Button>
+              </div>
 
           {/* Add Building Form */}
           {showAddForm && (
@@ -229,16 +362,24 @@ const BuildingManagement: React.FC<BuildingManagementProps> = ({ isOpen, onClose
                   </div>
                 </div>
                 <div className="flex gap-3 mt-4">
-                  <Button
-                    onClick={handleAddBuilding}
-                    className="bg-tlahuacali-red hover:bg-tlahuacali-red/90 text-white"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Crear Edificio
-                  </Button>
+                  {isAdmin && (
+                    <Button
+                      onClick={handleAddBuilding}
+                      disabled={loading}
+                      className="bg-tlahuacali-red hover:bg-tlahuacali-red/90 text-white"
+                    >
+                      {loading ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Plus className="h-4 w-4 mr-2" />
+                      )}
+                      Crear Edificio
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     onClick={() => setShowAddForm(false)}
+                    disabled={loading}
                   >
                     Cancelar
                   </Button>
@@ -287,39 +428,51 @@ const BuildingManagement: React.FC<BuildingManagementProps> = ({ isOpen, onClose
                     <div className="flex gap-2">
                       {editingBuilding?.id === building.id ? (
                         <>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={saveEditing}
-                            className="text-green-600 hover:text-green-700"
-                          >
-                            <Save className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={cancelEditing}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
+                          {isAdmin && (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={saveEditing}
+                                disabled={loading}
+                                className="text-green-600 hover:text-green-700"
+                              >
+                                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={cancelEditing}
+                                disabled={loading}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
                         </>
                       ) : (
                         <>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => startEditing(building)}
-                          >
-                            <Edit3 className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDeleteBuilding(building.id)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {isAdmin && (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => startEditing(building)}
+                                disabled={loading}
+                              >
+                                <Edit3 className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDeleteBuilding(building.id)}
+                                disabled={loading}
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                              </Button>
+                            </>
+                          )}
                         </>
                       )}
                     </div>
@@ -384,12 +537,14 @@ const BuildingManagement: React.FC<BuildingManagementProps> = ({ isOpen, onClose
             ))}
           </div>
 
-          {buildings.length === 0 && (
+          {buildings.length === 0 && !loading && (
             <div className="text-center py-8 text-muted-foreground">
               <Building className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No hay edificios registrados</p>
               <p className="text-sm">Haz clic en "Agregar Edificio" para comenzar</p>
             </div>
+          )}
+            </>
           )}
         </div>
       </DialogContent>

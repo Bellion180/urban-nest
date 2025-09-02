@@ -1,68 +1,90 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { prisma } from '../src/lib/prisma.js';
-
-// Importar rutas
-import authRoutes from './routes/auth.js';
-import buildingRoutes from './routes/buildings.js';
-import residentRoutes from './routes/residents.js';
-import paymentRoutes from './routes/payments.js';
-import buildingsRoutes from './routes/buildings.js';
-import residentsRoutes from './routes/residents.js';
-import paymentsRoutes from './routes/payments.js';
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = 3001; // Volvemos al puerto original
 
-// Middlewares
+console.log('🔧 Iniciando servidor simplificado...');
+console.log('🧪 TEST: console.log funciona correctamente');
+
+// CORS
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }));
+
+console.log('🧪 TEST: CORS configurado');
+console.log('🧪 TEST: Verificando app object:', typeof app);
+console.log('🧪 TEST: Verificando app.use:', typeof app.use);
+
+// Logging middleware - DEBE ejecutarse primero
+const loggingMiddleware = (req, res, next) => {
+  console.log('🚨 MIDDLEWARE EJECUTADO!!!');
+  console.log(`\n🔍 REQUEST: ${req.method} ${req.url}`);
+  console.log(`🕐 Time: ${new Date().toISOString()}`);
+  console.log(`📄 Headers:`, req.headers);
+  next();
+};
+
+console.log('🧪 TEST: Middleware function created:', typeof loggingMiddleware);
+
+try {
+  app.use(loggingMiddleware);
+  console.log('🧪 TEST: ✅ Middleware registered successfully');
+} catch (error) {
+  console.log('🧪 TEST: ❌ Error registering middleware:', error);
+}
+
+console.log('🧪 TEST: Middleware de logging configurado');
+
+// Body parsers
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Rutas
-app.use('/api/auth', authRoutes);
-app.use('/api/buildings', buildingRoutes);
-app.use('/api/residents', residentRoutes);
-app.use('/api/payments', paymentRoutes);
+// Logging middleware adicional después de parsers
+app.use((req, res, next) => {
+  console.log(`📦 Body:`, req.body);
+  console.log(`═══════════════════════════════`);
+  next();
+});
 
-// Ruta de prueba
+// Rutas de prueba
 app.get('/api/health', (req, res) => {
-  res.json({ message: 'Urban Nest API funcionando correctamente', timestamp: new Date().toISOString() });
+  console.log('📍 Dentro del handler /api/health');
+  res.json({ 
+    status: 'ok',
+    message: '🚨 SERVIDOR SIMPLIFICADO EN PUERTO 3009 🚨', 
+    timestamp: new Date().toISOString(),
+    server: 'Express Debug Server'
+  });
 });
 
-// Manejo de errores global
+app.put('/api/test/:id', (req, res) => {
+  console.log('📍 Dentro del handler PUT /api/test/:id');
+  console.log('ID:', req.params.id);
+  console.log('Body:', req.body);
+  res.json({ 
+    message: 'PUT exitoso', 
+    id: req.params.id, 
+    body: req.body 
+  });
+});
+
+// Error handler
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: 'Algo salió mal!' });
+  console.error('❌ ERROR HANDLER:', err.message);
+  console.error('Stack:', err.stack);
+  res.status(500).json({ error: 'Error interno del servidor' });
 });
 
-// Inicializar servidor
-async function startServer() {
-  try {
-    // Verificar conexión a la base de datos
-    await prisma.$connect();
-    console.log('✅ Conexión a MySQL establecida');
-
-    app.listen(PORT, () => {
-      console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
-      console.log(`📊 API Health: http://localhost:${PORT}/api/health`);
-    });
-  } catch (error) {
-    console.error('❌ Error al conectar con la base de datos:', error);
-    process.exit(1);
-  }
-}
-
-// Manejo de cierre graceful
-process.on('beforeExit', async () => {
-  await prisma.$disconnect();
-  console.log('🔌 Desconectado de la base de datos');
+// Iniciar servidor
+app.listen(PORT, () => {
+  console.log(`✅ Servidor simplificado corriendo en http://localhost:${PORT}`);
+  console.log(`📊 Health: http://localhost:${PORT}/api/health`);
+  console.log(`� Test PUT: http://localhost:${PORT}/api/test/123`);
 });
-
-startServer();

@@ -1,72 +1,61 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { Building, Users, ArrowRight, Home, ArrowLeft } from 'lucide-react';
-import { buildings } from '@/data/mockData';
+import { buildingService } from '@/services/api';
 import Header from './Header';
 
-interface Nivel {
+interface Floor {
   id: string;
-  numero: number;
-  nombre: string;
-  descripcion: string;
-  apartamentos: number;
-  residentes: number;
-  imagen: string;
+  number: number;
+  name: string;
+  apartments: {
+    id: string;
+    number: string;
+    residents: any[];
+  }[];
 }
 
-const niveles: Nivel[] = [
-  {
-    id: '1',
-    numero: 1,
-    nombre: 'Planta Baja',
-    descripcion: 'Acceso principal y áreas comunes',
-    apartamentos: 4,
-    residentes: 8,
-    imagen: '/lovable-uploads/building-a.jpg'
-  },
-  {
-    id: '2',
-    numero: 2,
-    nombre: 'Primer Piso',
-    descripcion: 'Apartamentos con vista al jardín',
-    apartamentos: 6,
-    residentes: 12,
-    imagen: '/lovable-uploads/building-b.jpg'
-  },
-  {
-    id: '3',
-    numero: 3,
-    nombre: 'Segundo Piso',
-    descripcion: 'Apartamentos con balcón',
-    apartamentos: 6,
-    residentes: 15,
-    imagen: '/lovable-uploads/building-c.jpg'
-  },
-  {
-    id: '4',
-    numero: 4,
-    nombre: 'Tercer Piso',
-    descripcion: 'Apartamentos premium',
-    apartamentos: 4,
-    residentes: 10,
-    imagen: '/lovable-uploads/building-a.jpg'
-  }
-
-];
+interface BuildingData {
+  id: string;
+  name: string;
+  address?: string;
+  description?: string;
+  floors: Floor[];
+}
 
 export const SeleccionNivel = () => {
   const { buildingId } = useParams<{ buildingId: string }>();
   const navigate = useNavigate();
   const [selectedNivel, setSelectedNivel] = useState<string | null>(null);
+  const [buildingData, setBuildingData] = useState<BuildingData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const currentBuilding = buildings.find(b => b.id === buildingId);
+  useEffect(() => {
+    const fetchBuildingData = async () => {
+      if (!buildingId) return;
+      
+      try {
+        setLoading(true);
+        const data = await buildingService.getById(buildingId);
+        setBuildingData(data);
+        setError(null);
+      } catch (err) {
+        console.error('Error al obtener datos del edificio:', err);
+        setError('Error al cargar los datos del edificio');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBuildingData();
+  }, [buildingId]);
 
   const handleNivelSelect = (nivelId: string) => {
     setSelectedNivel(nivelId);
-    // Aquí puedes agregar la lógica para navegar o realizar alguna acción
     console.log(`Nivel seleccionado: ${nivelId} del edificio: ${buildingId}`);
   };
 
@@ -78,6 +67,67 @@ export const SeleccionNivel = () => {
     if (buildingId) {
       navigate(`/building/${buildingId}`);
     }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-tlahuacali-red mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Cargando datos del edificio...</p>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <p className="text-red-600 mb-4">{error}</p>
+              <Button onClick={() => navigate('/dashboard')} variant="outline">
+                Volver al Dashboard
+              </Button>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (!buildingData) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <p className="text-muted-foreground mb-4">No se encontró el edificio</p>
+              <Button onClick={() => navigate('/dashboard')} variant="outline">
+                Volver al Dashboard
+              </Button>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  const floors = buildingData.floors || [];
+
+  // Función para calcular el total de residentes en un piso
+  const getTotalResidentsInFloor = (floor: Floor) => {
+    return floor.apartments.reduce((total, apartment) => {
+      return total + (apartment.residents?.length || 0);
+    }, 0);
   };
 
   return (
@@ -100,51 +150,51 @@ export const SeleccionNivel = () => {
           </div>
           
           <h2 className="text-3xl font-bold text-foreground mb-2">
-            Selección de Nivel - {currentBuilding?.nombre || 'Edificio'}
+            Selección de Nivel - {buildingData?.name || 'Edificio'}
           </h2>
           <p className="text-muted-foreground">
-            Navega entre los diferentes niveles del {currentBuilding?.nombre || 'edificio'}
+            Navega entre los diferentes niveles del {buildingData?.name || 'edificio'}
           </p>
         </div>
 
         {/* Mobile: Stack cards vertically */}
         <div className="block sm:hidden space-y-4">
-          {niveles.map((nivel) => (
+          {floors.map((floor) => (
             <Card 
-              key={nivel.id}
+              key={floor.id}
               className={`carousel-card bg-tlahuacali-cream hover:shadow-lg overflow-hidden cursor-pointer ${
-                selectedNivel === nivel.id ? 'ring-2 ring-tlahuacali-red' : ''
+                selectedNivel === floor.id ? 'ring-2 ring-tlahuacali-red' : ''
               }`}
-              onClick={() => handleNivelSelect(nivel.id)}
+              onClick={() => handleNivelSelect(floor.id)}
             >
               <div className="aspect-video relative">
                 <img 
-                  src={nivel.imagen} 
-                  alt={`Nivel ${nivel.numero}`}
+                  src="/lovable-uploads/building-a.jpg" 
+                  alt={`Nivel ${floor.number}`}
                   className="w-full h-full object-cover"
                 />
                 <div className="absolute top-2 left-2 bg-tlahuacali-red text-white px-2 py-1 rounded-full text-xs font-medium">
-                  Nivel {nivel.numero}
+                  Nivel {floor.number}
                 </div>
               </div>
             
               <CardContent className="p-4">
                 <h3 className="text-lg font-semibold text-foreground mb-2">
-                  {nivel.nombre}
+                  {floor.name || `Piso ${floor.number}`}
                 </h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  {nivel.descripcion}
+                  {floor.number === 1 ? 'Planta baja' : `Piso número ${floor.number}`}
                 </p>
                 
                 <div className="flex justify-between items-center">
                   <div className="flex items-center space-x-3 text-xs text-muted-foreground">
                     <div className="flex items-center space-x-1">
                       <Building className="h-3 w-3" />
-                      <span>{nivel.apartamentos} apts</span>
+                      <span>{floor.apartments.length} apts</span>
                     </div>
                     <div className="flex items-center space-x-1">
                       <Users className="h-3 w-3" />
-                      <span>{nivel.residentes} residentes</span>
+                      <span>{getTotalResidentsInFloor(floor)} residentes</span>
                     </div>
                   </div>
                 </div>
@@ -167,55 +217,55 @@ export const SeleccionNivel = () => {
             className="w-full"
           >
             <CarouselContent className="-ml-2 md:-ml-4">
-              {niveles.map((nivel) => (
-                <CarouselItem key={nivel.id} className="pl-2 md:pl-4 md:basis-1/2 lg:basis-1/3">
+              {floors.map((floor) => (
+                <CarouselItem key={floor.id} className="pl-2 md:pl-4 md:basis-1/2 lg:basis-1/3">
                   <Card 
                     className={`carousel-card bg-tlahuacali-cream hover:shadow-lg overflow-hidden cursor-pointer ${
-                      selectedNivel === nivel.id ? 'ring-2 ring-tlahuacali-red' : ''
+                      selectedNivel === floor.id ? 'ring-2 ring-tlahuacali-red' : ''
                     }`}
-                    onClick={() => handleNivelSelect(nivel.id)}
+                    onClick={() => handleNivelSelect(floor.id)}
                   >
                     <div className="aspect-video relative">
                       <img 
-                        src={nivel.imagen} 
-                        alt={nivel.nombre}
+                        src="/lovable-uploads/building-a.jpg"
+                        alt={floor.name || `Piso ${floor.number}`}
                         className="w-full h-full object-cover"
                       />
                       <div className="absolute top-4 left-4 bg-tlahuacali-red text-white px-3 py-1 rounded-full text-sm font-medium">
-                        Nivel {nivel.numero}
+                        Nivel {floor.number}
                       </div>
                     </div>
                     
                     <CardContent className="p-6">
                       <h3 className="text-xl font-semibold text-foreground mb-2 flex items-center gap-2">
                         <Home className="h-5 w-5" />
-                        {nivel.nombre}
+                        {floor.name || `Piso ${floor.number}`}
                       </h3>
                       <p className="text-muted-foreground mb-4">
-                        {nivel.descripcion}
+                        {floor.number === 1 ? 'Planta baja del edificio' : `Piso número ${floor.number} del edificio`}
                       </p>
                       
                       <div className="flex justify-between items-center mb-4">
                         <div className="flex items-center space-x-4 text-sm text-muted-foreground">
                           <div className="flex items-center space-x-1">
                             <Building className="h-4 w-4" />
-                            <span>{nivel.apartamentos} apts</span>
+                            <span>{floor.apartments.length} apts</span>
                           </div>
                           <div className="flex items-center space-x-1">
                             <Users className="h-4 w-4" />
-                            <span>{nivel.residentes} residentes</span>
+                            <span>{getTotalResidentsInFloor(floor)} residentes</span>
                           </div>
                         </div>
                       </div>
                       
                       <Button
                         className={`w-full text-white transition-colors ${
-                          selectedNivel === nivel.id 
+                          selectedNivel === floor.id 
                             ? 'bg-green-600 hover:bg-green-700' 
                             : 'bg-tlahuacali-red hover:bg-tlahuacali-red/90'
                         }`}
                       >
-                        {selectedNivel === nivel.id ? 'Seleccionado' : 'Seleccionar Nivel'}
+                        {selectedNivel === floor.id ? 'Seleccionado' : 'Seleccionar Nivel'}
                         <ArrowRight className="ml-2 h-4 w-4" />
                       </Button>
                     </CardContent>
@@ -232,7 +282,7 @@ export const SeleccionNivel = () => {
           <div className="mt-8 space-y-4">
             <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
               <p className="text-green-800 font-medium">
-                ✓ Nivel seleccionado: {niveles.find(n => n.id === selectedNivel)?.nombre}
+                ✓ Nivel seleccionado: {floors.find(f => f.id === selectedNivel)?.name || `Piso ${floors.find(f => f.id === selectedNivel)?.number}`}
               </p>
             </div>
             

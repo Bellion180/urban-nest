@@ -1,25 +1,151 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { buildings } from '@/data/mockData';
-import { ArrowLeft } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { ArrowLeft, Loader2, Plus } from 'lucide-react';
 import Header from './Header';
 import { toast } from '@/hooks/use-toast';
+import { buildingService, residentService } from '@/services/api';
+import { useAuth } from '@/contexts/AuthContext';
+
+interface Building {
+  id: string;
+  name: string;
+  floors: Array<{
+    id: string;
+    name: string;
+    apartments: string[];
+  }>;
+}
 
 const AddResident = () => {
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
+  const isAdmin = currentUser?.role === 'ADMIN';
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [loading, setLoading] = useState(false);
+  const [loadingBuildings, setLoadingBuildings] = useState(true);
+  const [buildings, setBuildings] = useState<Building[]>([]);
+  const [selectedBuilding, setSelectedBuilding] = useState<string>('');
+  const [selectedFloor, setSelectedFloor] = useState<string>('');
+  const [selectedApartment, setSelectedApartment] = useState<string>('');
+
+  const [formData, setFormData] = useState({
+    nombre: '',
+    apellido: '',
+    email: '',
+    telefono: '',
+    fechaNacimiento: '',
+    profesion: '',
+    estadoCivil: '',
+    numeroEmergencia: '',
+    vehiculos: '',
+    mascotas: '',
+    observaciones: '',
+    cuotaMantenimiento: ''
+  });
+
+  // Cargar edificios al montar el componente
+  useEffect(() => {
+    const loadBuildings = async () => {
+      try {
+        const data = await buildingService.getAll();
+        setBuildings(data);
+      } catch (error) {
+        console.error('Error loading buildings:', error);
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los edificios",
+          variant: "destructive"
+        });
+      } finally {
+        setLoadingBuildings(false);
+      }
+    };
+
+    loadBuildings();
+  }, []);
+
+  // Obtener pisos del edificio seleccionado
+  const getFloorsForBuilding = () => {
+    const building = buildings.find(b => b.id === selectedBuilding);
+    return building?.floors || [];
+  };
+
+  // Obtener apartamentos del piso seleccionado
+  const getApartmentsForFloor = () => {
+    const floors = getFloorsForBuilding();
+    const floor = floors.find(f => f.id === selectedFloor);
+    return floor?.apartments || [];
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Aquí iría la lógica para agregar el residente
-    toast({
-      title: "Éxito",
-      description: "Residente agregado correctamente",
-    });
-    navigate('/admin');
+    
+    if (!isAdmin) {
+      toast({
+        title: "Error",
+        description: "Solo los administradores pueden agregar residentes",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!selectedApartment) {
+      toast({
+        title: "Error",
+        description: "Por favor selecciona un apartamento",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setLoading(true);
+    
+    try {
+      // Encontrar el edificio y piso seleccionados
+      const building = buildings.find(b => b.id === selectedBuilding);
+      const floor = building?.floors.find(f => f.id === selectedFloor);
+      
+      if (!building || !floor) {
+        throw new Error('No se pudo encontrar el edificio o piso seleccionado');
+      }
+
+      // Crear el residente
+      await residentService.create({
+        ...formData,
+        apartmentNumber: selectedApartment,
+        buildingId: selectedBuilding,
+        floorNumber: floor.number || 1, // Usar el número del piso
+        cuotaMantenimiento: formData.cuotaMantenimiento ? parseFloat(formData.cuotaMantenimiento) : undefined
+      });
+
+      toast({
+        title: "Éxito",
+        description: "Residente agregado correctamente",
+      });
+      
+      navigate('/admin');
+    } catch (error) {
+      console.error('Error creating resident:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo agregar el residente",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -31,60 +157,271 @@ const AddResident = () => {
           <Button 
             variant="outline" 
             onClick={() => navigate('/admin')}
+            disabled={loading}
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Volver al Panel
           </Button>
         </div>
 
-        <Card className="max-w-2xl mx-auto">
+        <Card className="max-w-4xl mx-auto">
           <CardHeader>
-            <CardTitle className="text-2xl">Agregar Nuevo Residente</CardTitle>
+            <CardTitle className="text-2xl flex items-center gap-2">
+              <Plus className="h-6 w-6" />
+              Agregar Nuevo Residente
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <label htmlFor="nombre" className="text-sm font-medium">Nombre</label>
-                <Input id="nombre" placeholder="Nombre del residente" required />
+            {loadingBuildings ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-tlahuacali-red" />
+                <span className="ml-2">Cargando edificios...</span>
               </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Información Personal */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold border-b pb-2">Información Personal</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="nombre">Nombre *</Label>
+                      <Input 
+                        id="nombre" 
+                        placeholder="Nombre del residente" 
+                        value={formData.nombre}
+                        onChange={(e) => handleInputChange('nombre', e.target.value)}
+                        required 
+                      />
+                    </div>
 
-              <div className="space-y-2">
-                <label htmlFor="apellido" className="text-sm font-medium">Apellidos</label>
-                <Input id="apellido" placeholder="Apellidos del residente" required />
-              </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="apellido">Apellidos *</Label>
+                      <Input 
+                        id="apellido" 
+                        placeholder="Apellidos del residente" 
+                        value={formData.apellido}
+                        onChange={(e) => handleInputChange('apellido', e.target.value)}
+                        required 
+                      />
+                    </div>
 
-              <div className="space-y-2">
-                <label htmlFor="edificio" className="text-sm font-medium">Edificio</label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar edificio" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {buildings.map((building) => (
-                      <SelectItem key={building.id} value={building.id}>
-                        {building.nombre}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input 
+                        id="email" 
+                        type="email" 
+                        placeholder="Correo electrónico" 
+                        value={formData.email}
+                        onChange={(e) => handleInputChange('email', e.target.value)}
+                      />
+                    </div>
 
-              <div className="space-y-2">
-                <label htmlFor="apartamento" className="text-sm font-medium">Apartamento</label>
-                <Input id="apartamento" placeholder="Número de apartamento" required />
-              </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="telefono">Teléfono</Label>
+                      <Input 
+                        id="telefono" 
+                        placeholder="Número de teléfono" 
+                        value={formData.telefono}
+                        onChange={(e) => handleInputChange('telefono', e.target.value)}
+                      />
+                    </div>
 
-              <div className="space-y-2">
-                <label htmlFor="telefono" className="text-sm font-medium">Teléfono</label>
-                <Input id="telefono" placeholder="Número de teléfono" required />
-              </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="fechaNacimiento">Fecha de Nacimiento</Label>
+                      <Input 
+                        id="fechaNacimiento" 
+                        type="date" 
+                        value={formData.fechaNacimiento}
+                        onChange={(e) => handleInputChange('fechaNacimiento', e.target.value)}
+                      />
+                    </div>
 
-              <div className="space-y-2">
-                <label htmlFor="email" className="text-sm font-medium">Email</label>
-                <Input id="email" type="email" placeholder="Correo electrónico" required />
-              </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="profesion">Profesión</Label>
+                      <Input 
+                        id="profesion" 
+                        placeholder="Profesión u ocupación" 
+                        value={formData.profesion}
+                        onChange={(e) => handleInputChange('profesion', e.target.value)}
+                      />
+                    </div>
 
-            </form>
+                    <div className="space-y-2">
+                      <Label htmlFor="estadoCivil">Estado Civil</Label>
+                      <Select value={formData.estadoCivil} onValueChange={(value) => handleInputChange('estadoCivil', value)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccionar estado civil" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="SOLTERO">Soltero/a</SelectItem>
+                          <SelectItem value="CASADO">Casado/a</SelectItem>
+                          <SelectItem value="DIVORCIADO">Divorciado/a</SelectItem>
+                          <SelectItem value="VIUDO">Viudo/a</SelectItem>
+                          <SelectItem value="UNION_LIBRE">Unión Libre</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="numeroEmergencia">Número de Emergencia</Label>
+                      <Input 
+                        id="numeroEmergencia" 
+                        placeholder="Contacto de emergencia" 
+                        value={formData.numeroEmergencia}
+                        onChange={(e) => handleInputChange('numeroEmergencia', e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Ubicación */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold border-b pb-2">Ubicación</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="edificio">Edificio *</Label>
+                      <Select value={selectedBuilding} onValueChange={setSelectedBuilding}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccionar edificio" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {buildings.map((building) => (
+                            <SelectItem key={building.id} value={building.id}>
+                              {building.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="piso">Piso *</Label>
+                      <Select 
+                        value={selectedFloor} 
+                        onValueChange={setSelectedFloor}
+                        disabled={!selectedBuilding}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccionar piso" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {getFloorsForBuilding().map((floor) => (
+                            <SelectItem key={floor.id} value={floor.id}>
+                              {floor.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="apartamento">Apartamento *</Label>
+                      <Select 
+                        value={selectedApartment} 
+                        onValueChange={setSelectedApartment}
+                        disabled={!selectedFloor}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccionar apartamento" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {getApartmentsForFloor().map((apartment) => (
+                            <SelectItem key={apartment} value={apartment}>
+                              {apartment}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Información Adicional */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold border-b pb-2">Información Adicional</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="vehiculos">Vehículos</Label>
+                      <Input 
+                        id="vehiculos" 
+                        placeholder="Información de vehículos" 
+                        value={formData.vehiculos}
+                        onChange={(e) => handleInputChange('vehiculos', e.target.value)}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="mascotas">Mascotas</Label>
+                      <Input 
+                        id="mascotas" 
+                        placeholder="Información de mascotas" 
+                        value={formData.mascotas}
+                        onChange={(e) => handleInputChange('mascotas', e.target.value)}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="cuotaMantenimiento">Cuota de Mantenimiento (MXN)</Label>
+                      <Input 
+                        id="cuotaMantenimiento" 
+                        type="number" 
+                        step="0.01"
+                        placeholder="0.00" 
+                        value={formData.cuotaMantenimiento}
+                        onChange={(e) => handleInputChange('cuotaMantenimiento', e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="observaciones">Observaciones</Label>
+                    <Input 
+                      id="observaciones" 
+                      placeholder="Notas adicionales" 
+                      value={formData.observaciones}
+                      onChange={(e) => handleInputChange('observaciones', e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Botones */}
+                <div className="flex gap-4 pt-6">
+                  {isAdmin && (
+                    <Button 
+                      type="submit" 
+                      disabled={loading || !selectedApartment}
+                      className="bg-tlahuacali-red hover:bg-tlahuacali-red/90"
+                    >
+                      {loading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Agregando...
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Agregar Residente
+                        </>
+                      )}
+                    </Button>
+                  )}
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => navigate('/admin')}
+                    disabled={loading}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+
+                {!isAdmin && (
+                  <div className="text-center py-4 text-red-600">
+                    Solo los administradores pueden agregar residentes
+                  </div>
+                )}
+              </form>
+            )}
           </CardContent>
         </Card>
       </main>

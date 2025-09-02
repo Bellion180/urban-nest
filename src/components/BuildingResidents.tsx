@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { buildings, residents } from '@/data/mockData';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ArrowLeft, Phone, Mail, MapPin, Wallet, User, Building } from 'lucide-react';
 import Header from './Header';
@@ -12,12 +13,34 @@ import Header from './Header';
 const BuildingResidents = () => {
   const { buildingId } = useParams();
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
-  const [selectedResident, setSelectedResident] = React.useState<string | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = React.useState(false);
-  
-  const building = buildings.find(b => b.id === buildingId);
-  const buildingResidents = residents.filter(r => r.edificio === buildingId);
+  const { currentUser } = useAuth();
+  const isAdmin = currentUser?.role === 'ADMIN';
+  const [selectedResident, setSelectedResident] = useState<string | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [building, setBuilding] = useState<any>(null);
+  const [buildingResidents, setBuildingResidents] = useState<any[]>([]);
+
+  useEffect(() => {
+    // Obtener edificio desde la API
+    fetch(`/api/buildings`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('authToken')}`
+      }
+    })
+      .then(res => res.json())
+      .then(data => {
+        const found = data.find((b: any) => b.id === buildingId);
+        setBuilding(found);
+      });
+    // Obtener residentes desde la API
+    fetch(`/api/residents?building=${buildingId}`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('authToken')}`
+      }
+    })
+      .then(res => res.json())
+      .then(data => setBuildingResidents(data));
+  }, [buildingId]);
 
   if (!building) {
     return <div>Edificio no encontrado</div>;

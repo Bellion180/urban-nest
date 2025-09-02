@@ -18,6 +18,7 @@ import ResidentInvi from "./pages/ResidentInvi";
 import AdminPanel from "./components/AdminPanel";
 import NotFound from "./pages/NotFound";
 import AddAssociate from './components/AddAssociate';
+import AddResident from './components/AddResident';
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -40,7 +41,8 @@ const App = () => (
             <Route path="/resident/:id/personal" element={<ResidentPersonal />} />
             <Route path="/resident/:id/invi" element={<ResidentInvi />} />
             <Route path="/admin" element={<AdminPanel />} />
-            <Route path="/add-associate" element={<AddAssociate />} />"
+            <Route path="/add-associate" element={<AddAssociate />} />
+            <Route path="/add-resident" element={<AddResident />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

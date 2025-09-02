@@ -4,12 +4,28 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft } from 'lucide-react';
 import { residents } from '@/data/mockData';
+import { useEffect, useState } from 'react';
 import Header from '@/components/Header';
 
 const ResidentFinancial = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const resident = residents.find(r => r.id === id);
+  const [resident, setResident] = useState<any>(null);
+
+  useEffect(() => {
+    if (id) {
+      fetch(`/api/residents`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('authToken')}`
+        }
+      })
+        .then(res => res.json())
+        .then(data => {
+          const found = data.find((r: any) => r.id === id);
+          setResident(found);
+        });
+    }
+  }, [id]);
 
   if (!resident) {
     return <div>Residente no encontrado</div>;

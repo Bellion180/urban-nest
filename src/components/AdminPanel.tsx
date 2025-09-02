@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { residents as initialResidents } from '@/data/mockData';
+import { useEffect, useContext } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { Resident } from '@/types/user';
 import ResidentDetailModal from './ResidentDetailModal';
 import SimplePhotoModal from './SimplePhotoModal';
@@ -18,14 +19,19 @@ import {
   Eye,
   Settings,
   Plus,
-  Building
+  Building,
+  Loader2
 } from 'lucide-react';
 import Header from './Header';
 import { toast } from '@/hooks/use-toast';
+import { residentService } from '@/services/api';
 
 const AdminPanel = () => {
   const navigate = useNavigate();
-  const [residents, setResidents] = useState(initialResidents);
+  const { currentUser } = useAuth();
+  const isAdmin = currentUser?.role === 'ADMIN';
+  const [residents, setResidents] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedResident, setSelectedResident] = useState<Resident | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -34,27 +40,58 @@ const AdminPanel = () => {
   const [showBuildingModal, setShowBuildingModal] = useState(false);
 
   const filteredResidents = residents.filter(resident =>
-    resident.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    resident.apellido.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    resident.apartamento.includes(searchTerm) ||
-    resident.edificio.includes(searchTerm)
+    resident.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    resident.apellido?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    resident.apartamento?.includes(searchTerm) ||
+    resident.edificio?.includes(searchTerm)
   );
 
-  const activeResidents = residents.filter(r => r.estatus === 'activo').length;
-  const suspendedResidents = residents.filter(r => r.estatus === 'suspendido').length;
+  const activeResidents = residents.filter(r => r.estatus === 'ACTIVO').length;
+  const suspendedResidents = residents.filter(r => r.estatus === 'SUSPENDIDO').length;
+
+  // Cargar residentes desde la API
+  const loadResidents = async () => {
+    setLoading(true);
+    try {
+      const data = await residentService.getAll();
+      setResidents(data);
+    } catch (error) {
+      console.error('Error loading residents:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los residentes",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadResidents();
+  }, []);
 
   const toggleResidentStatus = (residentId: string) => {
-    setResidents(prev => prev.map(resident => {
-      if (resident.id === residentId) {
-        const newStatus = resident.estatus === 'activo' ? 'suspendido' : 'activo';
+    if (!isAdmin) return;
+    const resident = residents.find(r => r.id === residentId);
+    if (!resident) return;
+    const newStatus = resident.estatus === 'ACTIVO' ? 'SUSPENDIDO' : 'ACTIVO';
+    fetch(`/api/residents/${residentId}/status`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('authToken')}`
+      },
+      body: JSON.stringify({ estatus: newStatus })
+    })
+      .then(res => res.json())
+      .then(data => {
         toast({
           title: "Estatus actualizado",
           description: `${resident.nombre} ${resident.apellido} ahora está ${newStatus}`,
         });
-        return { ...resident, estatus: newStatus };
-      }
-      return resident;
-    }));
+        setResidents(prev => prev.map(r => r.id === residentId ? { ...r, estatus: newStatus } : r));
+      });
   };
 
   const handleViewResident = (resident: Resident) => {
@@ -98,25 +135,30 @@ const AdminPanel = () => {
             </Button>
 
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-              <Button 
-                variant="outline"
-                onClick={() => setShowBuildingModal(true)}
-                className="border-tlahuacali-red text-tlahuacali-red hover:bg-tlahuacali-red hover:text-white w-fit"
-              >
-                <Building className="mr-2 h-4 w-4" />
-                <span className="hidden sm:inline">Gestionar Edificios</span>
-                <span className="sm:hidden">Edificios</span>
-              </Button>
+              {isAdmin && (
+                <>
+                  <Button 
+                    variant="outline"
+                    onClick={() => setShowBuildingModal(true)}
+                    className="border-tlahuacali-red text-tlahuacali-red hover:bg-tlahuacali-red hover:text-white w-fit"
+                  >
+                    <Building className="mr-2 h-4 w-4" />
+                    <span className="hidden sm:inline">Gestionar Edificios</span>
+                    <span className="sm:hidden">Edificios</span>
+                  </Button>
 
-              <Button 
-                variant="default"
-                onClick={() => navigate('/add-associate')}
-                className="bg-tlahuacali-red hover:bg-tlahuacali-red/90 text-white w-fit"
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                <span className="hidden sm:inline">Agregar Residente</span>
-                <span className="sm:hidden">Agregar</span>
-              </Button>
+                  <Button 
+                    variant="default"
+                    onClick={() => navigate('/add-resident')}
+                    disabled={loading}
+                    className="bg-tlahuacali-red hover:bg-tlahuacali-red/90 text-white w-fit"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    <span className="hidden sm:inline">Agregar Residente</span>
+                    <span className="sm:hidden">Agregar</span>
+                  </Button>
+                </>
+              )}
             </div>
           </div>
           
@@ -194,8 +236,14 @@ const AdminPanel = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
-            <div className="space-y-3 sm:space-y-4">
-              {filteredResidents.map((resident) => (
+            {loading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-tlahuacali-red" />
+                <span className="ml-2 text-muted-foreground">Cargando residentes...</span>
+              </div>
+            ) : (
+              <div className="space-y-3 sm:space-y-4">
+                {filteredResidents.map((resident) => (
                 <div 
                   key={resident.id} 
                   className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 bg-white rounded-lg gap-3 sm:gap-4"
@@ -239,27 +287,28 @@ const AdminPanel = () => {
                       <Eye className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                       <span className="hidden sm:inline">Ver</span>
                     </Button>
-                    
-                    <Button
-                      size="sm"
-                      variant={resident.estatus === 'activo' ? 'destructive' : 'default'}
-                      onClick={() => toggleResidentStatus(resident.id)}
-                      className="flex-1 sm:flex-none text-xs sm:text-sm"
-                    >
-                      {resident.estatus === 'activo' ? (
-                        <>
-                          <UserX className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                          <span className="hidden sm:inline">Suspender</span>
-                          <span className="sm:hidden">Susp.</span>
-                        </>
-                      ) : (
-                        <>
-                          <UserCheck className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                          <span className="hidden sm:inline">Activar</span>
-                          <span className="sm:hidden">Act.</span>
-                        </>
-                      )}
-                    </Button>
+                    {isAdmin && (
+                      <Button
+                        size="sm"
+                        variant={resident.estatus === 'ACTIVO' ? 'destructive' : 'default'}
+                        onClick={() => toggleResidentStatus(resident.id)}
+                        className="flex-1 sm:flex-none text-xs sm:text-sm"
+                      >
+                        {resident.estatus === 'ACTIVO' ? (
+                          <>
+                            <UserX className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                            <span className="hidden sm:inline">Suspender</span>
+                            <span className="sm:hidden">Susp.</span>
+                          </>
+                        ) : (
+                          <>
+                            <UserCheck className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                            <span className="hidden sm:inline">Activar</span>
+                            <span className="sm:hidden">Act.</span>
+                          </>
+                        )}
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -277,7 +326,19 @@ const AdminPanel = () => {
                   </div>
                 </div>
               )}
-            </div>
+              </div>
+            )}
+
+            {/* Empty state para cuando no hay residentes */}
+            {!loading && residents.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p className="text-lg font-medium">No hay residentes registrados</p>
+                <p className="text-sm mt-2">
+                  Haz clic en "Agregar Residente" para comenzar
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </main>

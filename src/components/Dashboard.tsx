@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { buildings } from '@/data/mockData';
-import { Building, Users, ArrowRight, Layers } from 'lucide-react';
+import { Building, Users, ArrowRight, Loader2 } from 'lucide-react';
 import Header from './Header';
+import api from '@/services/api';
 import {
   Carousel,
   CarouselContent,
@@ -13,14 +13,88 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel";
 
+interface BuildingData {
+  id: string;
+  name: string;
+  description: string;
+  image: string;
+  floors: {
+    id: string;
+    name: string;
+    number: number;
+    apartments: string[];
+  }[];
+  totalApartments: number;
+  totalResidents: number;
+}
+
 const Dashboard = () => {
   const navigate = useNavigate();
+  const [buildings, setBuildings] = useState<BuildingData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchBuildings();
+  }, []);
+
+  const fetchBuildings = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      console.log('Dashboard: Obteniendo edificios de la API...');
+      
+      const buildingsData = await api.buildingService.getAll();
+      console.log('Dashboard: Edificios recibidos:', buildingsData);
+      
+      setBuildings(buildingsData);
+    } catch (error) {
+      console.error('Dashboard: Error al obtener edificios:', error);
+      setError('Error al cargar los edificios');
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
 
   const handleNivelesSelect = (buildingId: string) => {
     navigate(`/building/${buildingId}/niveles`);
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+              <p className="text-muted-foreground">Cargando edificios...</p>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <p className="text-red-500 mb-4">{error}</p>
+              <Button onClick={fetchBuildings} variant="outline">
+                Reintentar
+              </Button>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -43,32 +117,32 @@ const Dashboard = () => {
             >
               <div className="aspect-video relative">
                 <img 
-                  src={building.imagen} 
-                  alt={building.nombre}
+                  src={building.image} 
+                  alt={building.name}
                   className="w-full h-full object-cover"
                 />
                 <div className="absolute top-2 left-2 bg-tlahuacali-red text-white px-2 py-1 rounded-full text-xs font-medium">
-                  {building.nombre}
+                  {building.name}
                 </div>
               </div>
             
               <CardContent className="p-4">
                 <h3 className="text-lg font-semibold text-foreground mb-2">
-                  {building.nombre}
+                  {building.name}
                 </h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  {building.descripcion}
+                  {building.description}
                 </p>
                 
                 <div className="flex justify-between items-center mb-4">
                   <div className="flex items-center space-x-3 text-xs text-muted-foreground">
                     <div className="flex items-center space-x-1">
                       <Building className="h-3 w-3" />
-                      <span>{building.apartamentos} apts</span>
+                      <span>{building.totalApartments} apts</span>
                     </div>
                     <div className="flex items-center space-x-1">
                       <Users className="h-3 w-3" />
-                      <span>{building.residentes} residentes</span>
+                      <span>{building.totalResidents} residentes</span>
                     </div>
                   </div>
                 </div>
@@ -106,32 +180,32 @@ const Dashboard = () => {
                   >
                     <div className="aspect-video relative">
                       <img 
-                        src={building.imagen} 
-                        alt={building.nombre}
+                        src={building.image} 
+                        alt={building.name}
                         className="w-full h-full object-cover"
                       />
                       <div className="absolute top-4 left-4 bg-tlahuacali-red text-white px-3 py-1 rounded-full text-sm font-medium">
-                        {building.nombre}
+                        {building.name}
                       </div>
                     </div>
                   
                     <CardContent className="p-4 sm:p-6">
                       <h3 className="text-lg sm:text-xl font-semibold text-foreground mb-2">
-                        {building.nombre}
+                        {building.name}
                       </h3>
                       <p className="text-sm text-muted-foreground mb-4">
-                        {building.descripcion}
+                        {building.description}
                       </p>
                       
                       <div className="flex justify-between items-center mb-4">
                         <div className="flex items-center space-x-4 text-sm text-muted-foreground">
                           <div className="flex items-center space-x-1">
                             <Building className="h-4 w-4" />
-                            <span>{building.apartamentos} apts</span>
+                            <span>{building.totalApartments} apts</span>
                           </div>
                           <div className="flex items-center space-x-1">
                             <Users className="h-4 w-4" />
-                            <span>{building.residentes} residentes</span>
+                            <span>{building.totalResidents} residentes</span>
                           </div>
                         </div>
                       </div>

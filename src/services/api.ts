@@ -32,27 +32,80 @@ const authenticatedFetch = async (url: string, options: RequestInit = {}) => {
 export const authService = {
   // Iniciar sesión
   login: async (email: string, password: string) => {
-    const response = await fetch(`${API_BASE_URL}/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email, password }),
-    });
+    try {
+      console.log('API: Enviando solicitud de login al servidor:', email);
+      
+      // Validar los datos antes de enviar
+      if (!email || !password) {
+        throw new Error('Email y contraseña son requeridos');
+      }
+      
+      // Verificar primero si se puede conectar al servidor
+      try {
+        await fetch(`${API_BASE_URL}/health`, { 
+          method: 'GET',
+          signal: AbortSignal.timeout(2000) // Timeout de 2 segundos
+        });
+      } catch (e) {
+        console.error('API: Error al conectar con el servidor:', e);
+        throw new Error('No se pudo conectar con el servidor. Verifica tu conexión a internet.');
+      }
+      
+      // Hacer la solicitud de login
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+        credentials: 'include',  // Incluir cookies en la solicitud
+      });
+      
+      console.log('API: Respuesta recibida:', response.status, response.statusText);
+      
+      // Manejar respuesta no exitosa
+      if (!response.ok) {
+        let errorMessage = `Error HTTP: ${response.status}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+          console.error('API: Error detallado del servidor:', errorData);
+        } catch (parseError) {
+          console.error('API: No se pudo parsear respuesta de error:', parseError);
+        }
+        throw new Error(errorMessage);
+      }
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Error al iniciar sesión');
+      // Parsear respuesta exitosa
+      let data;
+      try {
+        data = await response.json();
+        console.log('API: Datos de login recibidos:', { 
+          ...data, 
+          user: data.user ? { ...data.user, role: data.user.role } : null,
+          token: data.token ? '[TOKEN PRESENTE]' : 'No token' 
+        });
+      } catch (parseError) {
+        console.error('API: Error al parsear respuesta exitosa:', parseError);
+        throw new Error('Error al procesar respuesta del servidor');
+      }
+      
+      // Guardar token en localStorage
+      if (data.token) {
+        localStorage.setItem('authToken', data.token);
+        if (data.user) {
+          localStorage.setItem('currentUser', JSON.stringify(data.user));
+        }
+      } else {
+        console.warn('API: No se recibió token del servidor');
+        throw new Error('Autenticación incompleta: no se recibió token');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('API: Error durante el login:', error);
+      throw error;
     }
-
-    const data = await response.json();
-    
-    // Guardar token en localStorage
-    if (data.token) {
-      localStorage.setItem('authToken', data.token);
-    }
-
-    return data;
   },
 
   // Registrar usuario
@@ -99,11 +152,22 @@ export const buildingService = {
     return response.json();
   },
 
+  // Obtener edificio por ID con pisos y apartamentos
+  getById: async (id: string) => {
+    const response = await authenticatedFetch(`/buildings/${id}`);
+    return response.json();
+  },
+
   // Crear edificio
   create: async (buildingData: {
     name: string;
     address?: string;
     description?: string;
+    floors?: Array<{
+      name: string;
+      number: number;
+      apartments: string[];
+    }>;
   }) => {
     const response = await authenticatedFetch('/buildings', {
       method: 'POST',
@@ -184,7 +248,9 @@ export const residentService = {
     profesion?: string;
     estadoCivil?: string;
     numeroEmergencia?: string;
-    apartmentId: string;
+    apartmentNumber: string;
+    buildingId: string;
+    floorNumber: number;
     vehiculos?: string;
     mascotas?: string;
     observaciones?: string;
