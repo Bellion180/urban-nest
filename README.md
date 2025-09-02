@@ -1,73 +1,174 @@
-# Welcome to your Lovable project
+# 🏢 Urban Nest - Sistema de Gestión Residencial
 
-## Project info
+Un sistema completo de gestión para edificios residenciales construido con React, Node.js, Prisma y MySQL.
 
-**URL**: https://lovable.dev/projects/199d7743-449c-422d-afd3-c54a61120ef9
+## ✨ Características
 
-## How can I edit this code?
+- 🔐 **Autenticación segura** con JWT
+- 👥 **Gestión de usuarios** (Admin, Usuario, Residente)
+- 🏢 **Administración de edificios** y residentes
+- 💰 **Sistema de pagos** y cuotas
+- 📱 **Interfaz responsive** con Tailwind CSS
+- 🎨 **Componentes UI** con shadcn/ui
+- 🐳 **Dockerizado** para fácil desarrollo
 
-There are several ways of editing your application.
+## 🚀 Configuración Rápida
 
-**Use Lovable**
+### Prerrequisitos
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/199d7743-449c-422d-afd3-c54a61120ef9) and start prompting.
+- [Node.js](https://nodejs.org/) (versión 18 o superior)
+- [Docker](https://www.docker.com/) y Docker Compose
+- [Git](https://git-scm.com/)
 
-Changes made via Lovable will be committed automatically to this repo.
+### 🎯 Instalación en Un Solo Comando
 
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```bash
+git clone https://github.com/Lechugin-bot/urban-nest.git
+cd urban-nest
+npm run setup
 ```
 
-**Edit a file directly in GitHub**
+### 📝 Instalación Paso a Paso
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+1. **Clonar el repositorio**
+   ```bash
+   git clone https://github.com/Lechugin-bot/urban-nest.git
+   cd urban-nest
+   ```
 
-**Use GitHub Codespaces**
+2. **Instalar dependencias**
+   ```bash
+   npm install
+   ```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+3. **Configurar la base de datos**
+   ```bash
+   # Iniciar contenedor MySQL
+   npm run docker:up
+   
+   # Configurar Prisma y poblar datos
+   npm run db:setup
+   ```
 
-## What technologies are used for this project?
+4. **Iniciar la aplicación**
+   ```bash
+   # Opción 1: Frontend y Backend juntos
+   npm run dev:full
+   
+   # Opción 2: Por separado
+   npm run server    # Backend en puerto 3001
+   npm run dev       # Frontend en puerto 8080+
+   ```
 
-This project is built with:
+## 👤 Usuarios de Prueba
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+Una vez configurada la base de datos, puedes usar estas credenciales:
 
-## How can I deploy this project?
+| Email | Contraseña | Rol |
+|-------|------------|-----|
+| admin@urbannest.com | admin123 | Admin |
+| user@urbannest.com | user123 | Usuario |
+| resident@urbannest.com | resident123 | Residente |
 
-Simply open [Lovable](https://lovable.dev/projects/199d7743-449c-422d-afd3-c54a61120ef9) and click on Share -> Publish.
+## 🛠️ Scripts Disponibles
 
-## Can I connect a custom domain to my Lovable project?
+```bash
+# Desarrollo
+npm run dev              # Iniciar frontend (Vite)
+npm run server          # Iniciar backend
+npm run dev:full        # Iniciar frontend y backend juntos
 
-Yes, you can!
+# Base de datos
+npm run docker:up       # Iniciar MySQL en Docker
+npm run docker:down     # Detener contenedores Docker
+npm run db:setup        # Configurar Prisma + poblar datos
+npm run db:seed         # Solo poblar datos de prueba
+npm run db:reset        # Resetear y reconfigurar DB
+npm run db:studio       # Abrir Prisma Studio
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+# Configuración completa
+npm run setup           # Instalación completa automática
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+# Construcción
+npm run build           # Construir para producción
+npm run preview         # Previsualizar build
+```
+
+## 🏗️ Arquitectura del Proyecto
+
+```
+urban-nest/
+├── src/                    # Frontend React
+│   ├── components/         # Componentes React
+│   ├── pages/             # Páginas de la aplicación
+│   ├── contexts/          # Context API (Auth)
+│   ├── services/          # API calls
+│   └── types/             # TypeScript types
+├── server/                # Backend Node.js
+│   ├── routes/            # Rutas API
+│   ├── middleware/        # Middleware de Express
+│   └── index.js          # Servidor principal
+├── prisma/               # Base de datos
+│   ├── schema.prisma     # Esquema de la DB
+│   └── migrations/       # Migraciones
+├── docker/               # Configuración Docker
+└── seed-users.js         # Script de datos de prueba
+```
+
+## 🔗 URLs de la Aplicación
+
+- **Frontend**: http://localhost:8080+ (puerto asignado por Vite)
+- **Backend API**: http://localhost:3001
+- **Prisma Studio**: http://localhost:5555 (ejecutar `npm run db:studio`)
+
+## 🔐 Autenticación
+
+El sistema utiliza JWT para autenticación. Todos los endpoints de la API requieren autenticación excepto:
+- `POST /api/auth/login`
+- `GET /api/health`
+
+## 🎯 Uso de la Aplicación
+
+1. **Iniciar sesión** con cualquier usuario de prueba
+2. **Navegar** por las diferentes secciones según tu rol
+3. **Gestionar** edificios, residentes y pagos (solo Admin)
+4. **Ver información** personal y financiera (Residentes)
+
+## 🐛 Solución de Problemas
+
+### Base de datos no conecta
+```bash
+npm run docker:down
+npm run docker:up
+npm run db:setup
+```
+
+### Puerto ocupado
+```bash
+# Cambiar puerto en vite.config.ts o server/index.js
+# O terminar procesos:
+npx kill-port 3001
+npx kill-port 8080
+```
+
+### Dependencias desactualizadas
+```bash
+npm update
+npm run setup
+```
+
+## 🤝 Contribuir
+
+1. Fork el proyecto
+2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
+3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
+4. Push a la rama (`git push origin feature/AmazingFeature`)
+5. Abre un Pull Request
+
+## 📧 Soporte
+
+¿Tienes problemas? Contacta al equipo de desarrollo o crea un issue en GitHub.
+
+## 📄 Licencia
+
+Este proyecto está bajo la Licencia MIT. Ver `LICENSE` para más detalles.
