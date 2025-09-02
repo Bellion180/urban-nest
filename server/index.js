@@ -1,90 +1,100 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { prisma } from '../src/lib/prisma.js';
+
+// Importar rutas
+import authRoutes from './routes/auth.js';
+import buildingRoutes from './routes/buildings.js';
+import residentRoutes from './routes/residents.js';
+import paymentRoutes from './routes/payments.js';
+
+// Importar middlewares
+import authMiddleware, { adminMiddleware } from './middleware/auth.js';
 
 dotenv.config();
 
 const app = express();
-const PORT = 3001; // Volvemos al puerto original
+const PORT = process.env.PORT || 3001;
 
-console.log('🔧 Iniciando servidor simplificado...');
-console.log('🧪 TEST: console.log funciona correctamente');
-
-// CORS
-app.use(cors({
-  origin: true,
+// Configuración CORS más simple y permisiva para desarrollo (funcionó en el servidor de prueba)
+const corsOptions = {
+  origin: true, // Permite todos los orígenes en desarrollo
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
-}));
-
-console.log('🧪 TEST: CORS configurado');
-console.log('🧪 TEST: Verificando app object:', typeof app);
-console.log('🧪 TEST: Verificando app.use:', typeof app.use);
-
-// Logging middleware - DEBE ejecutarse primero
-const loggingMiddleware = (req, res, next) => {
-  console.log('🚨 MIDDLEWARE EJECUTADO!!!');
-  console.log(`\n🔍 REQUEST: ${req.method} ${req.url}`);
-  console.log(`🕐 Time: ${new Date().toISOString()}`);
-  console.log(`📄 Headers:`, req.headers);
-  next();
 };
 
-console.log('🧪 TEST: Middleware function created:', typeof loggingMiddleware);
+// Aplica CORS a todas las rutas
+app.use(cors(corsOptions));
 
-try {
-  app.use(loggingMiddleware);
-  console.log('🧪 TEST: ✅ Middleware registered successfully');
-} catch (error) {
-  console.log('🧪 TEST: ❌ Error registering middleware:', error);
-}
-
-console.log('🧪 TEST: Middleware de logging configurado');
-
-// Body parsers
+// Middlewares
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Logging middleware adicional después de parsers
-app.use((req, res, next) => {
-  console.log(`📦 Body:`, req.body);
-  console.log(`═══════════════════════════════`);
-  next();
-});
-
-// Rutas de prueba
+// Health check (solo una definición)
 app.get('/api/health', (req, res) => {
-  console.log('📍 Dentro del handler /api/health');
   res.json({ 
     status: 'ok',
-    message: '🚨 SERVIDOR SIMPLIFICADO EN PUERTO 3009 🚨', 
+    message: 'Urban Nest API funcionando correctamente', 
     timestamp: new Date().toISOString(),
-    server: 'Express Debug Server'
+    environment: process.env.NODE_ENV || 'development'
   });
 });
 
-app.put('/api/test/:id', (req, res) => {
-  console.log('📍 Dentro del handler PUT /api/test/:id');
-  console.log('ID:', req.params.id);
-  console.log('Body:', req.body);
-  res.json({ 
-    message: 'PUT exitoso', 
-    id: req.params.id, 
-    body: req.body 
-  });
-});
+// Rutas
+// Configurar preflight requests para rutas específicas
+app.options('/api/auth/login', cors(corsOptions));
+app.options('/api/auth/register', cors(corsOptions));
+app.options('/api/auth/verify', cors(corsOptions));
+app.use('/api/auth', authRoutes); // No requiere autenticación previa
 
-// Error handler
+// Rutas protegidas
+app.use('/api/buildings', authMiddleware, buildingRoutes);
+app.use('/api/residents', authMiddleware, residentRoutes);
+app.use('/api/payments', authMiddleware, paymentRoutes);
+
+// Manejo de errores global
 app.use((err, req, res, next) => {
-  console.error('❌ ERROR HANDLER:', err.message);
-  console.error('Stack:', err.stack);
-  res.status(500).json({ error: 'Error interno del servidor' });
+  console.error(err.stack);
+  res.status(500).json({ error: 'Algo salió mal!' });
 });
 
-// Iniciar servidor
-app.listen(PORT, () => {
-  console.log(`✅ Servidor simplificado corriendo en http://localhost:${PORT}`);
-  console.log(`📊 Health: http://localhost:${PORT}/api/health`);
-  console.log(`� Test PUT: http://localhost:${PORT}/api/test/123`);
+// Inicializar servidor
+async function startServer() {
+  try {
+    // Verificar conexión a la base de datos
+    await prisma.$connect();
+    console.log('✅ Conexión a MySQL establecida');
+
+    const server = app.listen(PORT, '0.0.0.0', () => {
+      console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
+      console.log(`📊 API Health: http://localhost:${PORT}/api/health`);
+      console.log(`🔧 CORS habilitado para todos los orígenes`);
+    });
+
+    // Retornar el servidor para mantener la referencia
+    return server;
+  } catch (error) {
+    console.error('❌ Error al conectar con la base de datos:', error);
+    process.exit(1);
+  }
+}
+
+// Manejo de cierre graceful
+process.on('SIGINT', async () => {
+  console.log('\n🔄 Cerrando servidor...');
+  await prisma.$disconnect();
+  console.log('🔌 Desconectado de la base de datos');
+  process.exit(0);
 });
+
+process.on('SIGTERM', async () => {
+  console.log('\n🔄 Cerrando servidor...');
+  await prisma.$disconnect();
+  console.log('🔌 Desconectado de la base de datos');
+  process.exit(0);
+});
+
+// Iniciar el servidor
+startServer().catch(console.error);

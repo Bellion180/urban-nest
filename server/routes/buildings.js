@@ -115,7 +115,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Crear nuevo edificio
-router.post('/', async (req, res) => {
+router.post('/', authMiddleware, async (req, res) => {
   try {
     const { name, description, image, floors } = req.body;
 
@@ -191,20 +191,114 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Test endpoint
-router.put('/test/:id', async (req, res) => {
-  console.log('TEST PUT endpoint hit');
-  res.json({ message: 'Test PUT successful', id: req.params.id });
-});
-
 // Actualizar edificio
-router.put('/:id', (req, res) => {
-  console.log('PUT endpoint reached - VERY SIMPLE VERSION');
-  res.json({ message: 'PUT endpoint works', id: req.params.id });
+router.put('/:id', authMiddleware, async (req, res) => {
+  try {
+    console.log('=== PUT /buildings/:id ===');
+    const { id } = req.params;
+    const { name, description, floors } = req.body;
+    
+    console.log('ID:', id);
+    console.log('Body:', req.body);
+    console.log('User:', req.user);
+
+    // Verificar que es admin
+    if (req.user.role !== 'ADMIN') {
+      console.log('Access denied - user role:', req.user.role);
+      return res.status(403).json({ error: 'Acceso denegado' });
+    }
+
+    console.log('Admin check passed');
+
+    // Si solo se actualizan datos básicos (sin floors)
+    if (!floors || floors.length === 0) {
+      console.log('Updating basic data only');
+      const building = await prisma.building.update({
+        where: { id },
+        data: {
+          name,
+          description
+        },
+        include: {
+          floors: {
+            include: {
+              apartments: true
+            },
+            orderBy: {
+              number: 'asc'
+            }
+          }
+        }
+      });
+
+      console.log('Building updated successfully');
+      return res.json({
+        message: 'Edificio actualizado exitosamente',
+        building
+      });
+    }
+
+    console.log('Updating with floors');
+    // Si se actualizan floors también (actualización completa)
+    // Eliminar pisos y apartamentos existentes
+    await prisma.apartment.deleteMany({
+      where: {
+        floor: {
+          buildingId: id
+        }
+      }
+    });
+
+    await prisma.floor.deleteMany({
+      where: {
+        buildingId: id
+      }
+    });
+
+    // Actualizar edificio con nuevos datos y floors
+    const building = await prisma.building.update({
+      where: { id },
+      data: {
+        name,
+        description,
+        floors: {
+          create: floors.map(floor => ({
+            name: floor.name,
+            number: floor.number || floors.indexOf(floor) + 1,
+            apartments: {
+              create: (floor.apartments || []).map(aptNumber => ({
+                number: aptNumber
+              }))
+            }
+          }))
+        }
+      },
+      include: {
+        floors: {
+          include: {
+            apartments: true
+          },
+          orderBy: {
+            number: 'asc'
+          }
+        }
+      }
+    });
+
+    console.log('Building with floors updated successfully');
+    res.json({
+      message: 'Edificio actualizado exitosamente',
+      building
+    });
+  } catch (error) {
+    console.error('Error al actualizar edificio:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ error: 'Error interno del servidor', details: error.message });
+  }
 });
 
 // Eliminar edificio
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
 

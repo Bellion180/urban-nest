@@ -40,17 +40,6 @@ export const authService = {
         throw new Error('Email y contraseña son requeridos');
       }
       
-      // Verificar primero si se puede conectar al servidor
-      try {
-        await fetch(`${API_BASE_URL}/health`, { 
-          method: 'GET',
-          signal: AbortSignal.timeout(2000) // Timeout de 2 segundos
-        });
-      } catch (e) {
-        console.error('API: Error al conectar con el servidor:', e);
-        throw new Error('No se pudo conectar con el servidor. Verifica tu conexión a internet.');
-      }
-      
       // Hacer la solicitud de login
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',

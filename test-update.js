@@ -1,4 +1,4 @@
-import fetch from 'node-fetch';
+const fetch = require('node-fetch');
 
 async function testUpdate() {
   try {
@@ -46,7 +46,7 @@ async function testUpdate() {
     const buildingId = buildings[0].id;
     console.log('3. Probando actualización del edificio:', buildingId);
 
-    // Actualizar edificio (volver al endpoint original)
+    // Actualizar edificio
     const updateResponse = await fetch(`http://localhost:3001/api/buildings/${buildingId}`, {
       method: 'PUT',
       headers: {

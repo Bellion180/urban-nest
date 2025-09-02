@@ -18,60 +18,34 @@ const Login = () => {
     e.preventDefault();
     setIsLoading(true);
     
-    // Verificar si estamos usando usuario de prueba
-    const isDemo = (email === 'admin' && password === 'admin123') || 
-                  (email === 'user' && password === 'user123') || 
-                  (email === 'resident' && password === 'resident123');
-    
     try {
-      console.log('Login: Iniciando proceso de login con:', { email, isDemo });
+      console.log('Login: Iniciando proceso de login con:', { email });
       
-      // Intentar login a través del contexto de autenticación
-      try {
-        await login(email, password);
-        console.log('Login: Autenticación exitosa');
-        
-        // Mensaje según tipo de usuario
-        if (isDemo) {
-          toast({
-            title: "Modo Demo",
-            description: "Has iniciado sesión con usuario de prueba",
-          });
-        } else {
-          toast({
-            title: "Bienvenido",
-            description: "Has iniciado sesión exitosamente",
-          });
-        }
-        
-        // Redirección exitosa
-        navigate('/dashboard');
-      } catch (error: any) {
-        console.error('Login: Error específico de autenticación:', error);
-        
-        // Determinar tipo de mensaje de error
-        if (error.message && error.message.includes('Credenciales inválidas')) {
-          toast({
-            title: "Credenciales incorrectas",
-            description: "El email o la contraseña son incorrectos. Por favor verifica tus datos.",
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Error de autenticación",
-            description: error.message || "No se pudo completar el inicio de sesión",
-            variant: "destructive",
-          });
-        }
-      }
-    } catch (error: any) {
-      // Este catch es para errores inesperados
-      console.error('Login: Error general inesperado:', error);
+      await login(email, password);
+      console.log('Login: Autenticación exitosa');
+      
       toast({
-        title: "Error de conexión",
-        description: "No se pudo conectar con el servidor. Verifica tu conexión a internet.",
-        variant: "destructive",
+        title: "Bienvenido",
+        description: "Has iniciado sesión exitosamente",
       });
+      
+      navigate('/dashboard');
+    } catch (error: any) {
+      console.error('Login: Error de autenticación:', error);
+      
+      if (error.message && error.message.includes('Credenciales inválidas')) {
+        toast({
+          title: "Credenciales incorrectas",
+          description: "El email o la contraseña son incorrectos. Por favor verifica tus datos.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error de autenticación",
+          description: error.message || "No se pudo completar el inicio de sesión",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -145,30 +119,15 @@ const Login = () => {
                 Credenciales de acceso:
               </h3>
               <div className="space-y-2 text-xs text-muted-foreground">
-                <div className="pb-1 border-b border-border/30">
-                  <span className="font-medium block">Usuarios de la base de datos:</span>
+                <div>
+                  <span className="font-medium block">Usuarios registrados:</span>
                   <div className="flex flex-col sm:flex-row sm:justify-between mt-1">
                     <span className="font-medium">Admin:</span>
                     <span>admin@urbannest.com / admin123</span>
                   </div>
                   <div className="flex flex-col sm:flex-row sm:justify-between">
-                    <span className="font-medium">Residente:</span>
-                    <span>resident@urbannest.com / resident123</span>
-                  </div>
-                </div>
-                <div className="pt-1">
-                  <span className="font-medium block">Usuarios de prueba (modo demo):</span>
-                  <div className="flex flex-col sm:flex-row sm:justify-between mt-1">
-                    <span className="font-medium">Admin:</span>
-                    <span>admin / admin123</span>
-                  </div>
-                  <div className="flex flex-col sm:flex-row sm:justify-between">
                     <span className="font-medium">Usuario:</span>
-                    <span>user / user123</span>
-                  </div>
-                  <div className="flex flex-col sm:flex-row sm:justify-between">
-                    <span className="font-medium">Residente:</span>
-                    <span>resident / resident123</span>
+                    <span>user@urbannest.com / user123</span>
                   </div>
                 </div>
               </div>

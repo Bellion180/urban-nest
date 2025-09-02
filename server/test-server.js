@@ -1,52 +1,70 @@
-import express from 'express';
-import cors from 'cors';
-
+const express = require('express');
+const cors = require('cors');
 const app = express();
-const PORT = 3002; // Puerto diferente para no conflicto
 
-console.log('🔧 Starting test server...');
+// CORS permisivo para desarrollo
+app.use(cors({ 
+  origin: true, 
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
-// CORS
-app.use(cors());
-
-// Logging middleware - DEBE ejecutarse
-app.use((req, res, next) => {
-  console.log(`\n🔍 LOG: ${req.method} ${req.url}`);
-  console.log(`Headers:`, req.headers);
-  console.log(`Body:`, req.body);
-  next();
-});
-
-// Body parsers
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
-// Test routes
-app.get('/test', (req, res) => {
-  console.log('📍 Inside /test handler');
-  res.json({ message: 'Test GET works', timestamp: new Date().toISOString() });
-});
-
-app.put('/test/:id', (req, res) => {
-  console.log('📍 Inside /test/:id PUT handler');
-  console.log('ID:', req.params.id);
-  console.log('Body:', req.body);
+// Endpoint de health check
+app.get('/api/health', (req, res) => {
+  console.log('✅ Health check requested from:', req.get('origin'));
   res.json({ 
-    message: 'Test PUT works', 
-    id: req.params.id, 
-    body: req.body, 
-    timestamp: new Date().toISOString() 
+    status: 'OK', 
+    message: 'Servidor de prueba funcionando',
+    timestamp: new Date().toISOString()
   });
 });
 
-// Error handler
-app.use((err, req, res, next) => {
-  console.error('❌ Error handler:', err);
-  res.status(500).json({ error: 'Test server error' });
+// Endpoint de login básico
+app.post('/api/auth/login', (req, res) => {
+  console.log('✅ Login requested:', req.body);
+  console.log('✅ Request origin:', req.get('origin'));
+  
+  // Simulación de login exitoso
+  res.json({ 
+    token: 'test-token-12345', 
+    user: { 
+      id: 1, 
+      email: req.body.email || 'admin', 
+      role: 'ADMIN',
+      name: 'Usuario de Prueba'
+    },
+    message: 'Login exitoso'
+  });
 });
 
-app.listen(PORT, () => {
-  console.log(`✅ Test server running on http://localhost:${PORT}`);
-  console.log(`📊 Test GET: http://localhost:${PORT}/test`);
-  console.log(`📊 Test PUT: http://localhost:${PORT}/test/123`);
+// Middleware de manejo de errores
+app.use((err, req, res, next) => {
+  console.error('❌ Error:', err);
+  res.status(500).json({ error: 'Error interno del servidor' });
+});
+
+const PORT = 3001;
+const server = app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Servidor de prueba corriendo en http://localhost:${PORT}`);
+  console.log(`📊 Endpoints disponibles:`);
+  console.log(`   GET  http://localhost:${PORT}/api/health`);
+  console.log(`   POST http://localhost:${PORT}/api/auth/login`);
+  console.log(`🔧 CORS habilitado para todos los orígenes`);
+});
+
+// Mantener el proceso activo
+setInterval(() => {
+  console.log(`⏰ Servidor activo: ${new Date().toISOString()}`);
+}, 60000); // Cada minuto
+
+// Manejo de cierre graceful
+process.on('SIGINT', () => {
+  console.log('\n🔄 Cerrando servidor de prueba...');
+  server.close(() => {
+    console.log('✅ Servidor cerrado correctamente');
+    process.exit(0);
+  });
 });
