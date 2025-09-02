@@ -197,6 +197,113 @@ router.put('/:id', authMiddleware, async (req, res) => {
     console.log('=== PUT /buildings/:id ===');
     const { id } = req.params;
     const { name, description, floors } = req.body;
+
+    // Verificar que es admin
+    if (req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Acceso denegado' });
+    }
+
+    // Validar campos requeridos
+    if (!name || !description) {
+      return res.status(400).json({ error: 'Nombre y descripción son requeridos' });
+    }
+
+    // Obtener el edificio actual
+    const existingBuilding = await prisma.building.findUnique({
+      where: { id },
+      include: {
+        floors: {
+          include: {
+            apartments: true
+          }
+        }
+      }
+    });
+
+    if (!existingBuilding) {
+      return res.status(404).json({ error: 'Edificio no encontrado' });
+    }
+
+    try {
+      // Actualizar edificio base y sus pisos
+      const updatedBuilding = await prisma.building.update({
+        where: { id },
+        data: {
+          name,
+          description,
+          floors: {
+            // Eliminar pisos que ya no existen en la nueva configuración
+            deleteMany: {
+              id: {
+                notIn: floors.filter(f => !f.id.startsWith('temp-')).map(f => f.id)
+              }
+            },
+            // Actualizar pisos existentes y crear nuevos
+            upsert: floors.map(floor => ({
+              where: {
+                id: floor.id.startsWith('temp-') ? 'dummy-id' : floor.id
+              },
+              create: {
+                name: floor.name,
+                number: floor.number,
+                apartments: {
+                  create: floor.apartments.map(aptNumber => ({
+                    number: aptNumber
+                  }))
+                }
+              },
+              update: {
+                name: floor.name,
+                number: floor.number,
+                apartments: {
+                  deleteMany: {},
+                  create: floor.apartments.map(aptNumber => ({
+                    number: aptNumber
+                  }))
+                }
+              }
+            }))
+          }
+        },
+        include: {
+          floors: {
+            include: {
+              apartments: true
+            },
+            orderBy: {
+              number: 'asc'
+            }
+          },
+          _count: {
+            select: {
+              residents: true
+            }
+          }
+        }
+      });
+
+      // Formatear la respuesta
+      const formattedBuilding = {
+        id: updatedBuilding.id,
+        name: updatedBuilding.name,
+        description: updatedBuilding.description,
+        image: updatedBuilding.image,
+        floors: updatedBuilding.floors.map(floor => ({
+          id: floor.id,
+          name: floor.name,
+          number: floor.number,
+          apartments: floor.apartments.map(apt => apt.number)
+        })),
+        totalApartments: updatedBuilding.floors.reduce((total, floor) => total + floor.apartments.length, 0),
+        totalResidents: updatedBuilding._count.residents
+      };
+
+      res.json(formattedBuilding);
+
+    } catch (error) {
+      console.error('Error específico al actualizar:', error);
+      throw error;
+    }
     
     console.log('ID:', id);
     console.log('Body:', req.body);

@@ -134,6 +134,20 @@ export const authService = {
 };
 
 // ===== SERVICIOS DE EDIFICIOS =====
+interface Floor {
+  id?: string;
+  name: string;
+  number: number;
+  apartments: string[];
+}
+
+interface BuildingUpdate {
+  name?: string;
+  description?: string;
+  image?: string;
+  floors?: Floor[];
+}
+
 export const buildingService = {
   // Obtener todos los edificios
   getAll: async () => {
@@ -144,6 +158,15 @@ export const buildingService = {
   // Obtener edificio por ID con pisos y apartamentos
   getById: async (id: string) => {
     const response = await authenticatedFetch(`/buildings/${id}`);
+    return response.json();
+  },
+
+  // Actualizar edificio
+  update: async (id: string, updateData: BuildingUpdate) => {
+    const response = await authenticatedFetch(`/buildings/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updateData),
+    });
     return response.json();
   },
 
