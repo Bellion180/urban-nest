@@ -22,10 +22,11 @@ interface BuildingData {
     id: string;
     name: string;
     number: number;
-    apartments: string[];
+    apartments: Array<string>;
   }[];
   totalApartments: number;
   totalResidents: number;
+  totalFloors?: number;
 }
 
 const Dashboard = () => {
@@ -138,12 +139,18 @@ const Dashboard = () => {
                   <div className="flex items-center space-x-3 text-xs text-muted-foreground">
                     <div className="flex items-center space-x-1">
                       <Building className="h-3 w-3" />
-                      <span>{building.totalApartments} apts</span>
+                      <span>{building.floors.length} pisos</span>
                     </div>
                     <div className="flex items-center space-x-1">
                       <Users className="h-3 w-3" />
                       <span>{building.totalResidents} residentes</span>
                     </div>
+                  </div>
+                </div>
+                <div className="text-xs text-muted-foreground mb-4">
+                  <div className="flex items-center space-x-1">
+                    <span>Pisos disponibles:</span>
+                    <span className="font-medium">{building.floors.map(f => f.number).join(', ')}</span>
                   </div>
                 </div>
                 
@@ -201,12 +208,18 @@ const Dashboard = () => {
                         <div className="flex items-center space-x-4 text-sm text-muted-foreground">
                           <div className="flex items-center space-x-1">
                             <Building className="h-4 w-4" />
-                            <span>{building.totalApartments} apts</span>
+                            <span>{building.floors.length} pisos</span>
                           </div>
                           <div className="flex items-center space-x-1">
                             <Users className="h-4 w-4" />
                             <span>{building.totalResidents} residentes</span>
                           </div>
+                        </div>
+                      </div>
+                      <div className="text-sm text-muted-foreground mb-4">
+                        <div className="flex items-center space-x-1">
+                          <span>Pisos disponibles:</span>
+                          <span className="font-medium">{building.floors.map(f => f.number).join(', ')}</span>
                         </div>
                       </div>
                       

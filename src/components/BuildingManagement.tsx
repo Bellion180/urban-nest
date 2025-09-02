@@ -112,9 +112,29 @@ const BuildingManagement: React.FC<BuildingManagementProps> = ({ isOpen, onClose
 
     try {
       setLoading(true);
+      
+      // Validar que los campos requeridos estén presentes
+      if (!editForm.name || !editForm.description) {
+        throw new Error('Por favor complete todos los campos requeridos');
+      }
+
+      // Validar la estructura de los pisos
+      if (!editForm.floors.every(floor => 
+        floor.name && floor.number && Array.isArray(floor.apartments) && floor.apartments.length > 0
+      )) {
+        throw new Error('Todos los pisos deben tener nombre, número y al menos un apartamento');
+      }
+
+      // Actualizar el edificio con toda la información
       await buildingService.update(editingBuilding.id, {
         name: editForm.name,
         description: editForm.description,
+        floors: editForm.floors.map(floor => ({
+          id: floor.id.startsWith('temp-') ? undefined : floor.id,
+          name: floor.name,
+          number: floor.number,
+          apartments: floor.apartments
+        }))
       });
 
       toast({
@@ -129,7 +149,7 @@ const BuildingManagement: React.FC<BuildingManagementProps> = ({ isOpen, onClose
       console.error('Error updating building:', error);
       toast({
         title: "Error",
-        description: "No se pudo actualizar el edificio",
+        description: error instanceof Error ? error.message : "No se pudo actualizar el edificio",
         variant: "destructive"
       });
     } finally {
