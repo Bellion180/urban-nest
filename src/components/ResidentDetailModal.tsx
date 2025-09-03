@@ -81,12 +81,12 @@ const ResidentDetailModal: React.FC<ResidentDetailModalProps> = ({
                     <div className="flex flex-col items-center space-y-3">
                       <div 
                         className="relative cursor-pointer group"
-                        onClick={() => onPhotoClick(resident.foto)}
+                        onClick={() => onPhotoClick(resident.profilePhoto || '/placeholder.svg')}
                       >
                         <img 
-                          src={resident.foto} 
+                          src={resident.profilePhoto ? `http://localhost:3001${resident.profilePhoto}` : '/placeholder.svg'} 
                           alt={`${resident.nombre} ${resident.apellido}`}
-                          className="w-32 h-32 rounded-full object-cover border-4 border-gray-200 group-hover:border-tlahuacali-red transition-colors"
+                          className="w-32 h-32 rounded-full object-cover border-4 border-gray-200 group-hover:border-blue-500 transition-colors"
                         />
                         <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                           <Camera className="h-8 w-8 text-white" />
@@ -95,10 +95,10 @@ const ResidentDetailModal: React.FC<ResidentDetailModalProps> = ({
                       <div className="text-center">
                         <h3 className="font-semibold text-lg">{resident.nombre} {resident.apellido}</h3>
                         <Badge 
-                          variant={resident.estatus === 'activo' ? 'default' : 'destructive'}
-                          className={resident.estatus === 'activo' 
-                            ? 'bg-success text-white' 
-                            : 'bg-destructive text-white'
+                          variant={resident.estatus === 'ACTIVO' ? 'default' : 'destructive'}
+                          className={resident.estatus === 'ACTIVO' 
+                            ? 'bg-green-500 text-white' 
+                            : 'bg-red-500 text-white'
                           }
                         >
                           {resident.estatus}
@@ -109,107 +109,134 @@ const ResidentDetailModal: React.FC<ResidentDetailModalProps> = ({
                     <div className="space-y-3">
                       <div className="flex items-center space-x-2">
                         <MapPin className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">Edificio {resident.edificio}, Apt. {resident.apartamento}</span>
+                        <span className="text-sm">
+                          {resident.building?.name} - {resident.apartment?.floor?.name} - Apt. {resident.apartment?.number}
+                        </span>
                       </div>
                       
-                      <div className="flex items-center space-x-2">
-                        <Mail className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">{resident.email}</span>
-                      </div>
+                      {resident.email && (
+                        <div className="flex items-center space-x-2">
+                          <Mail className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">{resident.email}</span>
+                        </div>
+                      )}
                       
-                      <div className="flex items-center space-x-2">
-                        <Phone className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">{resident.telefono}</span>
-                      </div>
+                      {resident.telefono && (
+                        <div className="flex items-center space-x-2">
+                          <Phone className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">{resident.telefono}</span>
+                        </div>
+                      )}
+                      
+                      {resident.fechaNacimiento && (
+                        <div className="flex items-center space-x-2">
+                          <Calendar className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">Nacimiento: {new Date(resident.fechaNacimiento).toLocaleDateString()}</span>
+                        </div>
+                      )}
+                      
+                      {resident.edad && (
+                        <div className="flex items-center space-x-2">
+                          <User className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">Edad: {resident.edad} años</span>
+                        </div>
+                      )}
                       
                       <div className="flex items-center space-x-2">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">Nacimiento: {new Date(resident.fechaNacimiento).toLocaleDateString()}</span>
+                        <span className="text-sm">Registro: {new Date(resident.registrationDate).toLocaleDateString()}</span>
                       </div>
                       
                       <div className="flex items-center space-x-2">
-                        <Heart className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">{resident.estadoCivil}</span>
-                      </div>
-                      
-                      <div className="flex items-center space-x-2">
-                        <Briefcase className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">{resident.profesion}</span>
-                      </div>
-                      
-                      <div className="flex items-center space-x-2">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">Ingreso: {new Date(resident.fechaIngreso).toLocaleDateString()}</span>
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          resident.hasKey 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {resident.hasKey ? '🔑 Tiene llave' : '🚫 Sin llave'}
+                        </span>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
                 
-                {/* Vehículos */}
+                {/* Información Adicional */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-lg flex items-center space-x-2">
-                      <Car className="h-5 w-5" />
-                      <span>Vehículos</span>
+                      <FileText className="h-5 w-5" />
+                      <span>Información Adicional</span>
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    {resident.vehiculos.length > 0 ? (
-                      <div className="space-y-3">
-                        {resident.vehiculos.map((vehiculo) => (
-                          <div key={vehiculo.id} className="p-3 border rounded-lg">
-                            <div className="font-medium">{vehiculo.marca} {vehiculo.modelo}</div>
-                            <div className="text-sm text-muted-foreground">
-                              Color: {vehiculo.color} | Placas: {vehiculo.placas}
-                            </div>
-                            <Badge variant="outline" className="mt-1">
-                              {vehiculo.tipo}
-                            </Badge>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-muted-foreground text-sm">No hay vehículos registrados</p>
-                    )}
+                  <CardContent className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Deuda Actual</span>
+                      <span className={`font-medium ${resident.deudaActual > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        ${resident.deudaActual.toFixed(2)}
+                      </span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Pagos Realizados</span>
+                      <span className="font-medium text-green-600">
+                        ${resident.pagosRealizados.toFixed(2)}
+                      </span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Estado de Llaves</span>
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                        resident.hasKey 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {resident.hasKey ? 'Entregada' : 'Pendiente'}
+                      </span>
+                    </div>
                   </CardContent>
                 </Card>
               </div>
               
-              {/* Familiares */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center space-x-2">
-                    <Users className="h-5 w-5" />
-                    <span>Familiares</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {resident.familiares.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {resident.familiares.map((familiar) => (
-                        <div key={familiar.id} className="p-3 border rounded-lg">
-                          <div className="font-medium">{familiar.nombre} {familiar.apellido}</div>
-                          <div className="text-sm text-muted-foreground">{familiar.parentesco}</div>
-                          {familiar.telefono && (
-                            <div className="text-sm text-muted-foreground">Tel: {familiar.telefono}</div>
-                          )}
+              {/* Historial de Pagos */}
+              {resident.payments && resident.payments.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center space-x-2">
+                      <DollarSign className="h-5 w-5" />
+                      <span>Últimos Pagos</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {resident.payments.map((payment) => (
+                        <div key={payment.id} className="flex justify-between items-center p-3 border rounded-lg">
+                          <div>
+                            <div className="font-medium">{payment.type.replace('_', ' ')}</div>
+                            {payment.description && (
+                              <div className="text-sm text-muted-foreground">{payment.description}</div>
+                            )}
+                            <div className="text-xs text-muted-foreground">
+                              {new Date(payment.date).toLocaleDateString()}
+                            </div>
+                          </div>
+                          <div className="text-lg font-bold text-green-600">
+                            ${payment.amount.toFixed(2)}
+                          </div>
                         </div>
                       ))}
                     </div>
-                  ) : (
-                    <p className="text-muted-foreground text-sm">No hay familiares registrados</p>
-                  )}
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              )}
               
               {/* Observaciones */}
-              {resident.observaciones && (
+              {resident.informe && (
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg">Observaciones</CardTitle>
+                    <CardTitle className="text-lg">Informe</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-sm">{resident.observaciones}</p>
+                    <p className="text-sm">{resident.informe}</p>
                   </CardContent>
                 </Card>
               )}
@@ -314,7 +341,7 @@ const ResidentDetailModal: React.FC<ResidentDetailModalProps> = ({
                         
                         <div className="flex justify-between">
                           <span className="font-medium">Fecha de Asignación:</span>
-                          <span>{new Date(resident.fechaIngreso).toLocaleDateString()}</span>
+                          <span>{new Date(resident.registrationDate).toLocaleDateString()}</span>
                         </div>
                         
                         <div className="flex justify-between">

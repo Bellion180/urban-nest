@@ -282,6 +282,58 @@ export const residentService = {
     return response.json();
   },
 
+  // Obtener residentes por edificio y piso
+  getByFloor: async (buildingId: string, floorNumber: string) => {
+    console.log(`API: Obteniendo residentes del edificio ${buildingId}, piso ${floorNumber}`);
+    const response = await authenticatedFetch(`/residents/by-floor/${buildingId}/${floorNumber}`);
+    const residents = await response.json();
+    console.log(`API: Residentes obtenidos:`, residents);
+    return residents;
+  },
+
+  // Crear residente con foto de perfil
+  createWithPhoto: async (residentData: {
+    nombre: string;
+    apellido: string;
+    email?: string;
+    telefono?: string;
+    fechaNacimiento?: string;
+    apartmentNumber: string;
+    buildingId: string;
+    floorNumber: string;
+    profilePhoto?: File;
+  }) => {
+    const formData = new FormData();
+    
+    // Agregar todos los campos al FormData
+    Object.entries(residentData).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        if (key === 'profilePhoto' && value instanceof File) {
+          formData.append('profilePhoto', value);
+        } else {
+          formData.append(key, value.toString());
+        }
+      }
+    });
+
+    const token = getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/residents`, {
+      method: 'POST',
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+        // No establecer Content-Type para FormData - el navegador lo hace automáticamente
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Error de red' }));
+      throw new Error(error.error || `HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  },
+
   // Crear residente
   create: async (residentData: {
     nombre: string;

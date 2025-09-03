@@ -42,8 +42,8 @@ const AdminPanel = () => {
   const filteredResidents = residents.filter(resident =>
     resident.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     resident.apellido?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    resident.apartamento?.includes(searchTerm) ||
-    resident.edificio?.includes(searchTerm)
+    resident.apartment?.number?.includes(searchTerm) ||
+    resident.building?.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const activeResidents = residents.filter(r => r.estatus === 'ACTIVO').length;
@@ -76,7 +76,7 @@ const AdminPanel = () => {
     const resident = residents.find(r => r.id === residentId);
     if (!resident) return;
     const newStatus = resident.estatus === 'ACTIVO' ? 'SUSPENDIDO' : 'ACTIVO';
-    fetch(`/api/residents/${residentId}/status`, {
+    fetch(`http://localhost:3001/api/residents/${residentId}/status`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -91,6 +91,14 @@ const AdminPanel = () => {
           description: `${resident.nombre} ${resident.apellido} ahora está ${newStatus}`,
         });
         setResidents(prev => prev.map(r => r.id === residentId ? { ...r, estatus: newStatus } : r));
+      })
+      .catch(error => {
+        console.error('Error updating status:', error);
+        toast({
+          title: "Error",
+          description: "No se pudo actualizar el estatus del residente",
+          variant: "destructive"
+        });
       });
   };
 
@@ -107,13 +115,13 @@ const AdminPanel = () => {
   const handlePhotoUpdate = (residentId: string, newPhoto: string) => {
     setResidents(prev => prev.map(resident => {
       if (resident.id === residentId) {
-        return { ...resident, foto: newPhoto };
+        return { ...resident, profilePhoto: newPhoto };
       }
       return resident;
     }));
     
     if (selectedResident && selectedResident.id === residentId) {
-      setSelectedResident({ ...selectedResident, foto: newPhoto });
+      setSelectedResident({ ...selectedResident, profilePhoto: newPhoto });
     }
   };
 
@@ -250,10 +258,10 @@ const AdminPanel = () => {
                 >
                   <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
                     <img 
-                      src={resident.foto} 
+                      src={resident.profilePhoto ? `http://localhost:3001${resident.profilePhoto}` : '/placeholder.svg'} 
                       alt={`${resident.nombre} ${resident.apellido}`}
                       className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover cursor-pointer flex-shrink-0"
-                      onClick={() => handlePhotoClick(resident.foto)}
+                      onClick={() => handlePhotoClick(resident.profilePhoto ? `http://localhost:3001${resident.profilePhoto}` : '/placeholder.svg')}
                     />
                     
                     <div className="flex-1 min-w-0">
@@ -261,18 +269,23 @@ const AdminPanel = () => {
                         {resident.nombre} {resident.apellido}
                       </h3>
                       <p className="text-xs sm:text-sm text-muted-foreground">
-                        {resident.edificio} - Apt. {resident.apartamento}
+                        {resident.building?.name} - {resident.apartment?.floor?.name} - Apt. {resident.apartment?.number}
                       </p>
                       <div className="flex items-center space-x-2 mt-1">
                         <Badge 
-                          variant={resident.estatus === 'activo' ? 'default' : 'destructive'}
-                          className={`text-xs ${resident.estatus === 'activo' 
-                            ? 'bg-success text-white' 
-                            : 'bg-destructive text-white'
+                          variant={resident.estatus === 'ACTIVO' ? 'default' : 'destructive'}
+                          className={`text-xs ${resident.estatus === 'ACTIVO' 
+                            ? 'bg-green-500 text-white' 
+                            : 'bg-red-500 text-white'
                           }`}
                         >
                           {resident.estatus}
                         </Badge>
+                        {resident.hasKey && (
+                          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                            🔑 Con llave
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>

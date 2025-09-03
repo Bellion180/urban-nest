@@ -30,6 +30,7 @@ export const SeleccionNivel = () => {
   const { buildingId } = useParams<{ buildingId: string }>();
   const navigate = useNavigate();
   const [selectedNivel, setSelectedNivel] = useState<string | null>(null);
+  const [selectedFloorNumber, setSelectedFloorNumber] = useState<number | null>(null);
   const [buildingData, setBuildingData] = useState<BuildingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -77,9 +78,10 @@ export const SeleccionNivel = () => {
     }
   };
 
-  const handleNivelSelect = (nivelId: string) => {
+  const handleNivelSelect = async (nivelId: string, floorNumber: number) => {
     setSelectedNivel(nivelId);
-    console.log(`Nivel seleccionado: ${nivelId} del edificio: ${buildingId}`);
+    setSelectedFloorNumber(floorNumber);
+    console.log(`Nivel seleccionado: ${nivelId} del edificio: ${buildingId}, piso: ${floorNumber}`);
   };
 
   const handleBackToDashboard = () => {
@@ -87,8 +89,8 @@ export const SeleccionNivel = () => {
   };
 
   const handleContinueToResidents = () => {
-    if (buildingId) {
-      navigate(`/building/${buildingId}`);
+    if (buildingId && selectedFloorNumber) {
+      navigate(`/building/${buildingId}/floor/${selectedFloorNumber}/residents`);
     }
   };
 
@@ -188,7 +190,7 @@ export const SeleccionNivel = () => {
               className={`carousel-card bg-tlahuacali-cream hover:shadow-lg overflow-hidden cursor-pointer ${
                 selectedNivel === floor.id ? 'ring-2 ring-tlahuacali-red' : ''
               }`}
-              onClick={() => handleNivelSelect(floor.id)}
+              onClick={() => handleNivelSelect(floor.id, floor.number)}
             >
               <div className="aspect-video relative">
                 <img 
@@ -255,7 +257,7 @@ export const SeleccionNivel = () => {
                     className={`carousel-card bg-tlahuacali-cream hover:shadow-lg overflow-hidden cursor-pointer ${
                       selectedNivel === floor.id ? 'ring-2 ring-tlahuacali-red' : ''
                     }`}
-                    onClick={() => handleNivelSelect(floor.id)}
+                    onClick={() => handleNivelSelect(floor.id, floor.number)}
                   >
                     <div className="aspect-video relative">
                       <img 
@@ -332,7 +334,7 @@ export const SeleccionNivel = () => {
                 onClick={handleContinueToResidents}
                 className="bg-tlahuacali-red hover:bg-tlahuacali-red/90 text-white"
               >
-                Continuar a Residentes
+                Ver Residentes del Piso
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </div>
