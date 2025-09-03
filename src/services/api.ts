@@ -188,18 +188,6 @@ export const buildingService = {
     return response.json();
   },
 
-  // Actualizar edificio
-  update: async (id: string, buildingData: {
-    name?: string;
-    address?: string;
-    description?: string;
-  }) => {
-    const response = await authenticatedFetch(`/buildings/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(buildingData),
-    });
-    return response.json();
-  },
 
   // Eliminar edificio
   delete: async (id: string) => {
@@ -232,6 +220,50 @@ export const buildingService = {
       method: 'POST',
       body: JSON.stringify(apartmentData),
     });
+    return response.json();
+  },
+
+  // Crear edificio con imagen
+  createWithImage: async (formData: FormData) => {
+    const token = getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/buildings`, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` })
+      }
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Error de red' }));
+      throw new Error(error.message || `HTTP error! status: ${response.status}`);
+    }
+    return response.json();
+  },
+
+  // Subir imagen de piso
+  uploadFloorImage: async (buildingId: string, pisoNumber: number, imageFile: File) => {
+    const formData = new FormData();
+    formData.append('image', imageFile);
+    
+    const token = getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/buildings/${buildingId}/pisos/${pisoNumber}/image`, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` })
+      }
+    });
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Error de red' }));
+      throw new Error(error.message || `HTTP error! status: ${response.status}`);
+    }
+    return response.json();
+  },
+
+  // Obtener imágenes de pisos de un edificio
+  getFloorImages: async (buildingId: string) => {
+    const response = await authenticatedFetch(`/buildings/${buildingId}/pisos/imagenes`);
     return response.json();
   },
 };

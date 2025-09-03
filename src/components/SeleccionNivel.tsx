@@ -33,6 +33,7 @@ export const SeleccionNivel = () => {
   const [buildingData, setBuildingData] = useState<BuildingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [floorImages, setFloorImages] = useState<{[floorNumber: number]: string}>({});
 
   useEffect(() => {
     const fetchBuildingData = async () => {
@@ -42,6 +43,10 @@ export const SeleccionNivel = () => {
         setLoading(true);
         const data = await buildingService.getById(buildingId);
         setBuildingData(data);
+        
+        // Cargar imágenes de pisos
+        await loadFloorImages(buildingId);
+        
         setError(null);
       } catch (err) {
         console.error('Error al obtener datos del edificio:', err);
@@ -53,6 +58,24 @@ export const SeleccionNivel = () => {
 
     fetchBuildingData();
   }, [buildingId]);
+
+  // Función para cargar imágenes de pisos
+  const loadFloorImages = async (buildingId: string) => {
+    try {
+      console.log('Cargando imágenes de pisos para edificio:', buildingId);
+      const data = await buildingService.getFloorImages(buildingId);
+      console.log('Imágenes de pisos obtenidas:', data);
+      
+      const imagesMap: {[floorNumber: number]: string} = {};
+      data.floorImages.forEach((floorImg: any) => {
+        imagesMap[floorImg.pisoNumber] = `http://localhost:3001${floorImg.imageUrl}`;
+      });
+      
+      setFloorImages(imagesMap);
+    } catch (error) {
+      console.error('Error al cargar imágenes de pisos:', error);
+    }
+  };
 
   const handleNivelSelect = (nivelId: string) => {
     setSelectedNivel(nivelId);
@@ -169,9 +192,18 @@ export const SeleccionNivel = () => {
             >
               <div className="aspect-video relative">
                 <img 
-                  src="/lovable-uploads/building-a.jpg" 
+                  src={floorImages[floor.number] || "/lovable-uploads/building-a.jpg"} 
                   alt={`Nivel ${floor.number}`}
                   className="w-full h-full object-cover"
+                  onError={(e) => {
+                    console.error(`Error cargando imagen del piso ${floor.number} (móvil)`);
+                    e.currentTarget.src = "/lovable-uploads/building-a.jpg";
+                  }}
+                  onLoad={() => {
+                    if (floorImages[floor.number]) {
+                      console.log(`Imagen del piso ${floor.number} cargada exitosamente (móvil)`);
+                    }
+                  }}
                 />
                 <div className="absolute top-2 left-2 bg-tlahuacali-red text-white px-2 py-1 rounded-full text-xs font-medium">
                   Nivel {floor.number}
@@ -227,9 +259,18 @@ export const SeleccionNivel = () => {
                   >
                     <div className="aspect-video relative">
                       <img 
-                        src="/lovable-uploads/building-a.jpg"
+                        src={floorImages[floor.number] || "/lovable-uploads/building-a.jpg"}
                         alt={floor.name || `Piso ${floor.number}`}
                         className="w-full h-full object-cover"
+                        onError={(e) => {
+                          console.error(`Error cargando imagen del piso ${floor.number}`);
+                          e.currentTarget.src = "/lovable-uploads/building-a.jpg";
+                        }}
+                        onLoad={() => {
+                          if (floorImages[floor.number]) {
+                            console.log(`Imagen del piso ${floor.number} cargada exitosamente`);
+                          }
+                        }}
                       />
                       <div className="absolute top-4 left-4 bg-tlahuacali-red text-white px-3 py-1 rounded-full text-sm font-medium">
                         Nivel {floor.number}
