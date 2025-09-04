@@ -17,6 +17,7 @@ interface Building {
   floors: Array<{
     id: string;
     name: string;
+    number: number;
     apartments: string[];
   }>;
 }

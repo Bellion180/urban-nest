@@ -31,6 +31,7 @@ app.use(cors(corsOptions));
 // Middlewares
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.static('public'));
 
 // Health check (solo una definición)
 app.get('/api/health', (req, res) => {

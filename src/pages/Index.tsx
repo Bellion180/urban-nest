@@ -17,11 +17,11 @@ const Index = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="text-center max-w-md mx-auto">
-        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 text-tlahuacali-red">
-          TLAHUACALI
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 text-tlahuacali-red" style={{ fontFamily: 'Times New Roman' }}>
+          TLAXILACALLI, A. C.
         </h1>
         <p className="text-lg sm:text-xl text-muted-foreground mb-6">
-          Sistema de Administración Residencial
+          Francisco Javier Mina No. 202<br/>Alcaldía Tláhuac.
         </p>
         <div className="animate-pulse">
           <div className="h-2 bg-tlahuacali-red/20 rounded-full">

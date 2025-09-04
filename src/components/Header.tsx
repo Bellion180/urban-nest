@@ -24,9 +24,9 @@ const Header = () => {
         <div className="flex justify-between items-center py-3 sm:py-4">
           {/* Logo and Title */}
           <div className="flex items-center space-x-2 sm:space-x-4">
-            <h1 className="text-lg sm:text-xl md:text-2xl font-bold">TLAHUACALI</h1>
+            <h1 className="text-lg sm:text-xl md:text-2xl font-bold" style={{ fontFamily: 'Times New Roman' }}>TLAXILACALLI, A. C.</h1>
             <span className="hidden md:block text-xs sm:text-sm opacity-80">
-              Sistema de Administración Residencial
+              Francisco Javier Mina No. 202<br/>Alcaldía Tláhuac.
             </span>
           </div>
           

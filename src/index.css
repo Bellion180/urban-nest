@@ -60,6 +60,9 @@ All colors MUST be HSL.
     --sidebar-border: 220 13% 91%;
 
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Fondo con imagen */
+    --background-image: url('/lovable-uploads/Logo.png');
   }
 
   .dark {
@@ -107,7 +110,28 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    /* Configuración de marca de agua con el logo */
+    color: hsl(var(--foreground));
+    background-color: hsl(var(--background)) !important;
+    position: relative;
+    min-height: 100vh;
+    width: 100%;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: url('/Logo.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    opacity: 0.15;
+    pointer-events: none;
+    z-index: 1;
   }
 
   /* Mobile-first responsive utilities */

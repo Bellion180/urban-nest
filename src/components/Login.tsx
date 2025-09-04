@@ -56,8 +56,8 @@ const Login = () => {
       <div className="w-full max-w-sm sm:max-w-md">
         {/* Header */}
         <div className="bg-tlahuacali-red text-white p-4 sm:p-6 rounded-t-lg text-center">
-          <h1 className="text-xl sm:text-2xl font-bold">TLAHUACALI</h1>
-          <p className="text-xs sm:text-sm mt-1 opacity-90">Sistema de Administración</p>
+          <h1 className="text-xl sm:text-2xl font-bold" style={{ fontFamily: 'Times New Roman' }}>TLAXILACALLI, A. C.</h1>
+          <p className="text-xs sm:text-sm mt-1 opacity-90">Francisco Javier Mina No. 202<br/>Alcaldía Tláhuac.</p>
         </div>
         
         <Card className="rounded-t-none bg-tlahuacali-cream">
