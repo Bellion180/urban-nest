@@ -188,18 +188,6 @@ export const buildingService = {
     return response.json();
   },
 
-  // Actualizar edificio
-  update: async (id: string, buildingData: {
-    name?: string;
-    address?: string;
-    description?: string;
-  }) => {
-    const response = await authenticatedFetch(`/buildings/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(buildingData),
-    });
-    return response.json();
-  },
 
   // Eliminar edificio
   delete: async (id: string) => {
@@ -234,6 +222,50 @@ export const buildingService = {
     });
     return response.json();
   },
+
+  // Crear edificio con imagen
+  createWithImage: async (formData: FormData) => {
+    const token = getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/buildings`, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` })
+      }
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Error de red' }));
+      throw new Error(error.message || `HTTP error! status: ${response.status}`);
+    }
+    return response.json();
+  },
+
+  // Subir imagen de piso
+  uploadFloorImage: async (buildingId: string, pisoNumber: number, imageFile: File) => {
+    const formData = new FormData();
+    formData.append('image', imageFile);
+    
+    const token = getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/buildings/${buildingId}/pisos/${pisoNumber}/image`, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` })
+      }
+    });
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Error de red' }));
+      throw new Error(error.message || `HTTP error! status: ${response.status}`);
+    }
+    return response.json();
+  },
+
+  // Obtener imágenes de pisos de un edificio
+  getFloorImages: async (buildingId: string) => {
+    const response = await authenticatedFetch(`/buildings/${buildingId}/pisos/imagenes`);
+    return response.json();
+  },
 };
 
 // ===== SERVICIOS DE RESIDENTES =====
@@ -247,6 +279,58 @@ export const residentService = {
   // Obtener residente por ID
   getById: async (id: string) => {
     const response = await authenticatedFetch(`/residents/${id}`);
+    return response.json();
+  },
+
+  // Obtener residentes por edificio y piso
+  getByFloor: async (buildingId: string, floorNumber: string) => {
+    console.log(`API: Obteniendo residentes del edificio ${buildingId}, piso ${floorNumber}`);
+    const response = await authenticatedFetch(`/residents/by-floor/${buildingId}/${floorNumber}`);
+    const residents = await response.json();
+    console.log(`API: Residentes obtenidos:`, residents);
+    return residents;
+  },
+
+  // Crear residente con foto de perfil
+  createWithPhoto: async (residentData: {
+    nombre: string;
+    apellido: string;
+    email?: string;
+    telefono?: string;
+    fechaNacimiento?: string;
+    apartmentNumber: string;
+    buildingId: string;
+    floorNumber: string;
+    profilePhoto?: File;
+  }) => {
+    const formData = new FormData();
+    
+    // Agregar todos los campos al FormData
+    Object.entries(residentData).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        if (key === 'profilePhoto' && value instanceof File) {
+          formData.append('profilePhoto', value);
+        } else {
+          formData.append(key, value.toString());
+        }
+      }
+    });
+
+    const token = getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/residents`, {
+      method: 'POST',
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+        // No establecer Content-Type para FormData - el navegador lo hace automáticamente
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Error de red' }));
+      throw new Error(error.error || `HTTP error! status: ${response.status}`);
+    }
+
     return response.json();
   },
 

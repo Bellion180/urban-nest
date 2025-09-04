@@ -44,6 +44,8 @@ const BuildingManagement: React.FC<BuildingManagementProps> = ({ isOpen, onClose
   const [buildings, setBuildings] = useState<BuildingData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [floorImages, setFloorImages] = useState<{[buildingId: string]: any[]}>({});
+  const [showFloorImages, setShowFloorImages] = useState<{[buildingId: string]: boolean}>({});
 
   // Cargar edificios desde la API
   const loadBuildings = async () => {
@@ -62,6 +64,40 @@ const BuildingManagement: React.FC<BuildingManagementProps> = ({ isOpen, onClose
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Cargar imágenes de pisos para un edificio
+  const loadFloorImages = async (buildingId: string) => {
+    try {
+      console.log('Cargando imágenes de pisos para edificio:', buildingId);
+      const data = await buildingService.getFloorImages(buildingId);
+      console.log('Datos recibidos de imágenes de pisos:', data);
+      setFloorImages(prev => ({
+        ...prev,
+        [buildingId]: data.floorImages
+      }));
+    } catch (error) {
+      console.error('Error loading floor images:', error);
+    }
+  };
+
+  // Alternar visualización de imágenes de pisos
+  const toggleFloorImages = async (buildingId: string) => {
+    console.log('Alternando visualización de imágenes de pisos para:', buildingId);
+    const isCurrentlyShown = showFloorImages[buildingId];
+    console.log('Estado actual de mostrar imágenes:', isCurrentlyShown);
+    setShowFloorImages(prev => ({
+      ...prev,
+      [buildingId]: !isCurrentlyShown
+    }));
+
+    // Si va a mostrar las imágenes y no las ha cargado, cargarlas
+    if (!isCurrentlyShown && !floorImages[buildingId]) {
+      console.log('Cargando imágenes de pisos...');
+      await loadFloorImages(buildingId);
+    } else {
+      console.log('Imágenes ya cargadas o ocultando:', floorImages[buildingId]);
     }
   };
 
@@ -85,8 +121,31 @@ const BuildingManagement: React.FC<BuildingManagementProps> = ({ isOpen, onClose
     name: '',
     description: '',
     floors: 1,
-    apartmentsPerFloor: 4
+    apartmentsPerFloor: 4,
+    image: null as File | null,
+    floorImages: [] as (File | null)[],
   });
+
+  // Función para actualizar imágenes de pisos
+  const updateFloorImage = (floorIndex: number, file: File | null) => {
+    setNewBuilding(prev => {
+      const newFloorImages = [...prev.floorImages];
+      newFloorImages[floorIndex] = file;
+      return { ...prev, floorImages: newFloorImages };
+    });
+  };
+
+  // Función para actualizar número de pisos y ajustar array de imágenes
+  const updateFloorsCount = (count: number) => {
+    setNewBuilding(prev => {
+      const newFloorImages = new Array(count).fill(null);
+      // Mantener las imágenes existentes si hay menos pisos
+      for (let i = 0; i < Math.min(count, prev.floorImages.length); i++) {
+        newFloorImages[i] = prev.floorImages[i];
+      }
+      return { ...prev, floors: count, floorImages: newFloorImages };
+    });
+  };
 
   // Funciones para manejar la edición
   const startEditing = (building: BuildingData) => {
@@ -189,7 +248,6 @@ const BuildingManagement: React.FC<BuildingManagementProps> = ({ isOpen, onClose
 
   const handleAddBuilding = async () => {
     if (!isAdmin) return;
-    
     if (!newBuilding.name || !newBuilding.description || newBuilding.floors < 1 || newBuilding.apartmentsPerFloor < 1) {
       toast({
         title: "Error",
@@ -198,10 +256,8 @@ const BuildingManagement: React.FC<BuildingManagementProps> = ({ isOpen, onClose
       });
       return;
     }
-
     try {
       setLoading(true);
-      
       // Crear estructura de pisos para enviar al backend
       const floors: FloorData[] = [];
       for (let i = 1; i <= newBuilding.floors; i++) {
@@ -210,34 +266,51 @@ const BuildingManagement: React.FC<BuildingManagementProps> = ({ isOpen, onClose
           apartments.push(`${i}${j.toString().padStart(2, '0')}`);
         }
         floors.push({
-          id: `temp-piso-${i}`, // ID temporal, el backend asignará el real
+          id: `temp-piso-${i}`,
           name: `Piso ${i}`,
           number: i,
           apartments
         });
       }
-
-      // Crear el edificio en el backend con pisos incluidos
-      await buildingService.create({
-        name: newBuilding.name,
-        description: newBuilding.description,
-        floors: floors.map(floor => ({
-          name: floor.name,
-          number: floor.number,
-          apartments: floor.apartments
-        }))
-      });
+      // Usar FormData para enviar imagen y datos
+      const formData = new FormData();
+      formData.append('name', newBuilding.name);
+      formData.append('description', newBuilding.description);
+      formData.append('floors', JSON.stringify(floors.map(floor => ({ name: floor.name, number: floor.number, apartments: floor.apartments }))));
+      if (newBuilding.image) {
+        formData.append('image', newBuilding.image);
+      }
+      // Enviar al backend
+      const createdBuilding = await buildingService.createWithImage(formData);
+      
+      // Subir imágenes de pisos si las hay
+      if (newBuilding.floorImages.some(img => img !== null)) {
+        for (let i = 0; i < newBuilding.floorImages.length; i++) {
+          const floorImage = newBuilding.floorImages[i];
+          if (floorImage) {
+            try {
+              const pisoNumber = i + 1; // Los pisos empiezan en 1
+              await buildingService.uploadFloorImage(createdBuilding.building.id, pisoNumber, floorImage);
+              console.log(`Imagen del piso ${pisoNumber} subida correctamente`);
+            } catch (floorError) {
+              console.error(`Error subiendo imagen del piso ${i + 1}:`, floorError);
+              toast({
+                title: "Advertencia",
+                description: `No se pudo subir la imagen del piso ${i + 1}`,
+                variant: "destructive"
+              });
+            }
+          }
+        }
+      }
 
       toast({
         title: "Edificio agregado",
         description: `${newBuilding.name} ha sido agregado correctamente`
       });
-
-      // Recargar edificios y cerrar el formulario
       await loadBuildings();
-      setNewBuilding({ name: '', description: '', floors: 1, apartmentsPerFloor: 4 });
+      setNewBuilding({ name: '', description: '', floors: 1, apartmentsPerFloor: 4, image: null, floorImages: [] });
       setShowAddForm(false);
-      
     } catch (error) {
       console.error('Error creating building:', error);
       toast({
@@ -367,7 +440,7 @@ const BuildingManagement: React.FC<BuildingManagementProps> = ({ isOpen, onClose
                       min="1"
                       max="20"
                       value={newBuilding.floors}
-                      onChange={(e) => setNewBuilding(prev => ({ ...prev, floors: parseInt(e.target.value) || 1 }))}
+                      onChange={(e) => updateFloorsCount(parseInt(e.target.value) || 1)}
                     />
                   </div>
                   <div>
@@ -380,7 +453,41 @@ const BuildingManagement: React.FC<BuildingManagementProps> = ({ isOpen, onClose
                       onChange={(e) => setNewBuilding(prev => ({ ...prev, apartmentsPerFloor: parseInt(e.target.value) || 1 }))}
                     />
                   </div>
+                  <div>
+                    <Label>Foto del Edificio</Label>
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={e => setNewBuilding(prev => ({ ...prev, image: e.target.files?.[0] || null }))}
+                    />
+                  </div>
                 </div>
+                
+                {/* Sección para imágenes de pisos */}
+                {newBuilding.floors > 0 && (
+                  <div className="mt-4 space-y-3">
+                    <Label className="text-sm font-medium">Fotos de Pisos (Opcional)</Label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {Array.from({ length: newBuilding.floors }, (_, index) => (
+                        <div key={index} className="border rounded p-3 space-y-2">
+                          <Label className="text-sm">Piso {index + 1}</Label>
+                          <Input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => updateFloorImage(index, e.target.files?.[0] || null)}
+                            className="text-sm"
+                          />
+                          {newBuilding.floorImages[index] && (
+                            <p className="text-xs text-green-600">
+                              ✓ {newBuilding.floorImages[index]?.name}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
                 <div className="flex gap-3 mt-4">
                   {isAdmin && (
                     <Button
@@ -542,6 +649,18 @@ const BuildingManagement: React.FC<BuildingManagementProps> = ({ isOpen, onClose
                     </div>
                   ) : (
                     <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium text-sm">Pisos y Departamentos:</span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => toggleFloorImages(building.id)}
+                          className="text-xs"
+                        >
+                          {showFloorImages[building.id] ? 'Ocultar' : 'Ver'} Fotos
+                        </Button>
+                      </div>
+                      
                       {building.floors.map((floor) => (
                         <div key={floor.id} className="flex justify-between items-center text-sm">
                           <span className="font-medium">{floor.name}:</span>
@@ -550,6 +669,38 @@ const BuildingManagement: React.FC<BuildingManagementProps> = ({ isOpen, onClose
                           </span>
                         </div>
                       ))}
+                      
+                      {/* Mostrar imágenes de pisos */}
+                      {showFloorImages[building.id] && floorImages[building.id] && (
+                        <div className="mt-3 space-y-2">
+                          <Label className="text-sm font-medium">Fotos de Pisos:</Label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {floorImages[building.id].map((floorImg: any) => {
+                              console.log('Renderizando imagen de piso:', floorImg);
+                              return (
+                                <div key={floorImg.pisoNumber} className="border rounded p-2">
+                                  <p className="text-xs font-medium mb-1">{floorImg.pisoName}</p>
+                                  <img 
+                                    src={`http://localhost:3001${floorImg.imageUrl}`}
+                                    alt={`Piso ${floorImg.pisoNumber}`}
+                                    className="w-full h-20 object-cover rounded"
+                                    onError={(e) => {
+                                      console.error('Error cargando imagen:', floorImg.imageUrl);
+                                      e.currentTarget.src = '/placeholder.svg';
+                                    }}
+                                    onLoad={() => {
+                                      console.log('Imagen cargada exitosamente:', floorImg.imageUrl);
+                                    }}
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
+                          {floorImages[building.id].length === 0 && (
+                            <p className="text-xs text-muted-foreground">No hay fotos de pisos disponibles</p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </CardContent>

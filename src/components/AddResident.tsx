@@ -33,20 +33,14 @@ const AddResident = () => {
   const [selectedBuilding, setSelectedBuilding] = useState<string>('');
   const [selectedFloor, setSelectedFloor] = useState<string>('');
   const [selectedApartment, setSelectedApartment] = useState<string>('');
+  const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
 
   const [formData, setFormData] = useState({
     nombre: '',
     apellido: '',
     email: '',
     telefono: '',
-    fechaNacimiento: '',
-    profesion: '',
-    estadoCivil: '',
-    numeroEmergencia: '',
-    vehiculos: '',
-    mascotas: '',
-    observaciones: '',
-    cuotaMantenimiento: ''
+    fechaNacimiento: ''
   });
 
   // Cargar edificios al montar el componente
@@ -122,14 +116,20 @@ const AddResident = () => {
         throw new Error('No se pudo encontrar el edificio o piso seleccionado');
       }
 
-      // Crear el residente
-      await residentService.create({
+      // Obtener el número del piso del nombre (ej: "Piso 1" -> "1")
+      const floorNumber = floor.name?.match(/\d+/)?.[0] || '1';
+
+      // Preparar los datos para el servicio
+      const residentData = {
         ...formData,
         apartmentNumber: selectedApartment,
         buildingId: selectedBuilding,
-        floorNumber: floor.number || 1, // Usar el número del piso
-        cuotaMantenimiento: formData.cuotaMantenimiento ? parseFloat(formData.cuotaMantenimiento) : undefined
-      });
+        floorNumber: floorNumber,
+        profilePhoto: profilePhoto || undefined
+      };
+
+      // Crear el residente usando el servicio
+      await residentService.createWithPhoto(residentData);
 
       toast({
         title: "Éxito",
@@ -141,7 +141,7 @@ const AddResident = () => {
       console.error('Error creating resident:', error);
       toast({
         title: "Error",
-        description: "No se pudo agregar el residente",
+        description: error instanceof Error ? error.message : "No se pudo agregar el residente",
         variant: "destructive"
       });
     } finally {
@@ -237,41 +237,23 @@ const AddResident = () => {
                       />
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="profesion">Profesión</Label>
-                      <Input 
-                        id="profesion" 
-                        placeholder="Profesión u ocupación" 
-                        value={formData.profesion}
-                        onChange={(e) => handleInputChange('profesion', e.target.value)}
-                      />
-                    </div>
+                  </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="estadoCivil">Estado Civil</Label>
-                      <Select value={formData.estadoCivil} onValueChange={(value) => handleInputChange('estadoCivil', value)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar estado civil" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="SOLTERO">Soltero/a</SelectItem>
-                          <SelectItem value="CASADO">Casado/a</SelectItem>
-                          <SelectItem value="DIVORCIADO">Divorciado/a</SelectItem>
-                          <SelectItem value="VIUDO">Viudo/a</SelectItem>
-                          <SelectItem value="UNION_LIBRE">Unión Libre</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="numeroEmergencia">Número de Emergencia</Label>
-                      <Input 
-                        id="numeroEmergencia" 
-                        placeholder="Contacto de emergencia" 
-                        value={formData.numeroEmergencia}
-                        onChange={(e) => handleInputChange('numeroEmergencia', e.target.value)}
-                      />
-                    </div>
+                  {/* Foto de Perfil */}
+                  <div className="space-y-2">
+                    <Label htmlFor="profilePhoto">Foto de Perfil</Label>
+                    <Input 
+                      id="profilePhoto" 
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setProfilePhoto(e.target.files?.[0] || null)}
+                      className="cursor-pointer"
+                    />
+                    {profilePhoto && (
+                      <p className="text-sm text-green-600">
+                        ✓ {profilePhoto.name}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -334,54 +316,6 @@ const AddResident = () => {
                         </SelectContent>
                       </Select>
                     </div>
-                  </div>
-                </div>
-
-                {/* Información Adicional */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold border-b pb-2">Información Adicional</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="vehiculos">Vehículos</Label>
-                      <Input 
-                        id="vehiculos" 
-                        placeholder="Información de vehículos" 
-                        value={formData.vehiculos}
-                        onChange={(e) => handleInputChange('vehiculos', e.target.value)}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="mascotas">Mascotas</Label>
-                      <Input 
-                        id="mascotas" 
-                        placeholder="Información de mascotas" 
-                        value={formData.mascotas}
-                        onChange={(e) => handleInputChange('mascotas', e.target.value)}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="cuotaMantenimiento">Cuota de Mantenimiento (MXN)</Label>
-                      <Input 
-                        id="cuotaMantenimiento" 
-                        type="number" 
-                        step="0.01"
-                        placeholder="0.00" 
-                        value={formData.cuotaMantenimiento}
-                        onChange={(e) => handleInputChange('cuotaMantenimiento', e.target.value)}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="observaciones">Observaciones</Label>
-                    <Input 
-                      id="observaciones" 
-                      placeholder="Notas adicionales" 
-                      value={formData.observaciones}
-                      onChange={(e) => handleInputChange('observaciones', e.target.value)}
-                    />
                   </div>
                 </div>
 

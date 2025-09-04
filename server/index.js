@@ -33,6 +33,17 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static('public'));
 
+// Servir archivos estáticos desde la carpeta public
+app.use('/edificios', express.static('public/edificios'));
+
+// Log de todas las peticiones
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  console.log('Headers:', req.headers);
+  console.log('Body:', req.body);
+  next();
+});
+
 // Health check (solo una definición)
 app.get('/api/health', (req, res) => {
   res.json({ 

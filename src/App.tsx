@@ -10,6 +10,7 @@ import ForgotPassword from "./components/ForgotPassword";
 import PasswordRecovery from "./components/PasswordRecovery";
 import Dashboard from "./components/Dashboard";
 import { SeleccionNivel } from "./components/SeleccionNivel";
+import FloorResidents from "./components/FloorResidents";
 import BuildingResidents from "./components/BuildingResidents";
 import ResidentDetail from "./components/ResidentDetail";
 import ResidentFinancial from "./pages/ResidentFinancial";
@@ -36,6 +37,7 @@ const App = () => (
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/building/:buildingId" element={<BuildingResidents />} />
             <Route path="/building/:buildingId/niveles" element={<SeleccionNivel />} />
+            <Route path="/building/:buildingId/floor/:floorNumber/residents" element={<FloorResidents />} />
             <Route path="/resident/:residentId" element={<ResidentDetail />} />
             <Route path="/resident/:id/financial" element={<ResidentFinancial />} />
             <Route path="/resident/:id/personal" element={<ResidentPersonal />} />

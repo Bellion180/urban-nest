@@ -1,8 +1,53 @@
 import express from 'express';
 import { prisma } from '../../src/lib/prisma.js';
 import { authMiddleware } from '../middleware/auth.js';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 
 const router = express.Router();
+
+console.log('🏠 Cargando rutas de residents...');
+
+// Configuración de multer para fotos de perfil de residentes
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    // Obtener datos del body para construir la ruta
+    const { buildingId, apartmentNumber, floorNumber } = req.body;
+    
+    if (!buildingId || !apartmentNumber || !floorNumber) {
+      return cb(new Error('buildingId, apartmentNumber y floorNumber son requeridos'));
+    }
+    
+    const dir = path.join('public', 'edificios', buildingId, 'pisos', floorNumber.toString(), 'apartamentos', apartmentNumber);
+    
+    // Crear directorio si no existe
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    
+    cb(null, dir);
+  },
+  filename: function (req, file, cb) {
+    // Siempre usar "perfil.jpg" como nombre
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `perfil${ext}`);
+  }
+});
+
+const upload = multer({ 
+  storage: storage,
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Solo se permiten archivos de imagen'));
+    }
+  },
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB
+  }
+});
 
 // Obtener todos los residentes
 router.get('/', authMiddleware, async (req, res) => {
@@ -88,9 +133,97 @@ router.get('/', authMiddleware, async (req, res) => {
   }
 });
 
-// Crear nuevo residente
-router.post('/', authMiddleware, async (req, res) => {
+// Test endpoint simple
+router.get('/test-route', authMiddleware, async (req, res) => {
+  console.log('📍 Test route alcanzada');
+  res.json({ message: 'Test route works!' });
+});
+
+// Obtener residentes por edificio y piso
+router.get('/by-floor/:buildingId/:floorNumber', authMiddleware, async (req, res) => {
+  console.log('📍 By-floor route alcanzada');
   try {
+    const { buildingId, floorNumber } = req.params;
+    console.log(`Obteniendo residentes del edificio ${buildingId}, piso ${floorNumber}`);
+
+    const residents = await prisma.resident.findMany({
+      where: {
+        buildingId: buildingId,
+        apartment: {
+          floor: {
+            number: parseInt(floorNumber)
+          }
+        }
+      },
+      include: {
+        building: {
+          select: {
+            name: true
+          }
+        },
+        apartment: {
+          include: {
+            floor: {
+              select: {
+                name: true,
+                number: true
+              }
+            }
+          }
+        },
+        payments: {
+          orderBy: {
+            date: 'desc'
+          },
+          take: 5
+        }
+      },
+      orderBy: [
+        { apellido: 'asc' },
+        { nombre: 'asc' }
+      ]
+    });
+
+    const formattedResidents = residents.map(resident => ({
+      id: resident.id,
+      nombre: resident.nombre,
+      apellido: resident.apellido,
+      edad: resident.edad,
+      email: resident.email,
+      telefono: resident.telefono,
+      fechaNacimiento: resident.fechaNacimiento,
+      noPersonas: resident.noPersonas,
+      discapacidad: resident.discapacidad,
+      profilePhoto: resident.profilePhoto,
+      estatus: resident.estatus,
+      hasKey: resident.hasKey,
+      registrationDate: resident.registrationDate,
+      deudaActual: resident.deudaActual,
+      pagosRealizados: resident.pagosRealizados,
+      informe: resident.informe,
+      edificio: resident.building.name,
+      apartamento: resident.apartment.number,
+      piso: resident.apartment.floor.name,
+      pisoNumero: resident.apartment.floor.number,
+      recentPayments: resident.payments
+    }));
+
+    console.log(`Encontrados ${formattedResidents.length} residentes en el piso ${floorNumber}`);
+    res.json(formattedResidents);
+  } catch (error) {
+    console.error('Error al obtener residentes por piso:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// Crear nuevo residente
+router.post('/', upload.single('profilePhoto'), authMiddleware, async (req, res) => {
+  try {
+    console.log('=== POST /residents ===');
+    console.log('Body:', req.body);
+    console.log('File:', req.file);
+    console.log('User:', req.user);
+
     const {
       nombre,
       apellido,
@@ -98,15 +231,12 @@ router.post('/', authMiddleware, async (req, res) => {
       email,
       telefono,
       fechaNacimiento,
-      noPersonas,
-      discapacidad,
-      profilePhoto,
+      profesion,
+      estadoCivil,
+      numeroEmergencia,
       buildingId,
       apartmentNumber,
-      floorNumber,
-      deudaActual,
-      pagosRealizados,
-      informe
+      floorNumber
     } = req.body;
 
     // Verificar que es admin
@@ -120,8 +250,11 @@ router.post('/', authMiddleware, async (req, res) => {
         number: apartmentNumber,
         floor: {
           buildingId: buildingId,
-          number: floorNumber
+          number: parseInt(floorNumber)
         }
+      },
+      include: {
+        floor: true
       }
     });
 
@@ -143,6 +276,20 @@ router.post('/', authMiddleware, async (req, res) => {
       });
     }
 
+    // Procesar la foto de perfil si se subió
+    let profilePhotoPath = null;
+    if (req.file) {
+      profilePhotoPath = `/edificios/${buildingId}/pisos/${floorNumber}/apartamentos/${apartmentNumber}/${req.file.filename}`;
+      console.log('Foto de perfil guardada en:', profilePhotoPath);
+    }
+
+    console.log('User:', req.user);
+
+    // Verificar si req.user.id existe
+    if (!req.user || !req.user.id) {
+      return res.status(400).json({ error: 'Usuario no válido' });
+    }
+
     const resident = await prisma.resident.create({
       data: {
         nombre,
@@ -151,15 +298,11 @@ router.post('/', authMiddleware, async (req, res) => {
         email,
         telefono,
         fechaNacimiento: fechaNacimiento ? new Date(fechaNacimiento) : null,
-        noPersonas: noPersonas ? parseInt(noPersonas) : null,
-        discapacidad: discapacidad === 'si',
-        profilePhoto,
+        profilePhoto: profilePhotoPath,
         buildingId,
         apartmentId: apartment.id,
-        deudaActual: deudaActual ? parseFloat(deudaActual) : 0,
-        pagosRealizados: pagosRealizados ? parseFloat(pagosRealizados) : 0,
-        informe,
-        createdById: req.user.userId
+        estatus: 'ACTIVO',
+        createdById: req.user.id
       },
       include: {
         building: true,
@@ -272,3 +415,5 @@ router.delete('/:id', authMiddleware, async (req, res) => {
 });
 
 export default router;
+
+console.log('🏠 Rutas de residents exportadas exitosamente');

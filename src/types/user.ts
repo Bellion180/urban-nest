@@ -2,19 +2,44 @@ export interface Resident {
   id: string;
   nombre: string;
   apellido: string;
-  apartamento: string;
-  edificio: string;
-  telefono: string;
-  email: string;
-  fechaNacimiento: string;
-  estadoCivil: string;
-  profesion: string;
-  vehiculos: Vehicle[];
-  familiares: Familiar[];
-  foto: string;
-  estatus: 'activo' | 'suspendido';
-  fechaIngreso: string;
-  observaciones?: string;
+  edad?: number;
+  email?: string;
+  telefono?: string;
+  fechaNacimiento?: string;
+  profilePhoto?: string;
+  estatus: 'ACTIVO' | 'SUSPENDIDO' | 'INACTIVO';
+  hasKey: boolean;
+  registrationDate: string;
+  createdAt: string;
+  updatedAt: string;
+  buildingId: string;
+  apartmentId: string;
+  deudaActual: number;
+  pagosRealizados: number;
+  informe?: string;
+  createdById: string;
+  
+  // Relaciones incluidas
+  building?: {
+    id: string;
+    name: string;
+  };
+  apartment?: {
+    id: string;
+    number: string;
+    floor: {
+      id: string;
+      name: string;
+      number: number;
+    };
+  };
+  payments?: Array<{
+    id: string;
+    amount: number;
+    type: string;
+    description?: string;
+    date: string;
+  }>;
 }
 
 export interface Vehicle {
