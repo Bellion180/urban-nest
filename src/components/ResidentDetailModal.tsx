@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 
 interface ResidentDetailModalProps {
-  resident: Resident | null;
+  resident: Resident | null | any;
   isOpen: boolean;
   onClose: () => void;
   onPhotoClick: (photo: string) => void;
@@ -35,6 +35,14 @@ const ResidentDetailModal: React.FC<ResidentDetailModalProps> = ({
   onPhotoClick 
 }) => {
   const { isAdmin } = useAuth();
+  
+  // Debug: Logs para documentos
+  console.log('🔍 ResidentDetailModal - Datos del residente recibidos:', resident);
+  console.log('🔍 ResidentDetailModal - Campos de documentos:');
+  console.log('  - documentoCurp:', resident?.documentoCurp);
+  console.log('  - documentoComprobanteDomicilio:', resident?.documentoComprobanteDomicilio);
+  console.log('  - documentoActaNacimiento:', resident?.documentoActaNacimiento);
+  console.log('  - documentoIne:', resident?.documentoIne);
   
   if (!resident) return null;
 
@@ -50,10 +58,14 @@ const ResidentDetailModal: React.FC<ResidentDetailModalProps> = ({
         
         <div className="mt-4">
           <Tabs defaultValue="personal" className="w-full">
-            <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-3' : 'grid-cols-1'}`}>
+            <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-4' : 'grid-cols-2'}`}>
               <TabsTrigger value="personal" className="flex items-center space-x-2">
                 <User className="h-4 w-4" />
                 <span>Información Personal</span>
+              </TabsTrigger>
+              <TabsTrigger value="documents" className="flex items-center space-x-2">
+                <FileText className="h-4 w-4" />
+                <span>Documentos</span>
               </TabsTrigger>
               {isAdmin && (
                 <>
@@ -62,7 +74,7 @@ const ResidentDetailModal: React.FC<ResidentDetailModalProps> = ({
                     <span>Información Financiera</span>
                   </TabsTrigger>
                   <TabsTrigger value="invi" className="flex items-center space-x-2">
-                    <FileText className="h-4 w-4" />
+                    <Briefcase className="h-4 w-4" />
                     <span>Información INVI</span>
                   </TabsTrigger>
                 </>
@@ -242,76 +254,166 @@ const ResidentDetailModal: React.FC<ResidentDetailModalProps> = ({
               )}
             </TabsContent>
             
+            {/* Documentos */}
+            <TabsContent value="documents" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Documentos del Residente</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* CURP */}
+                    <div className="border rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-medium">CURP</h4>
+                        {resident.documentoCurp ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.open(`http://localhost:3001${resident.documentoCurp}`, '_blank')}
+                          >
+                            <FileText className="h-4 w-4 mr-2" />
+                            Ver Documento
+                          </Button>
+                        ) : (
+                          <span className="text-gray-500 text-sm">No disponible</span>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Comprobante de Domicilio */}
+                    <div className="border rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-medium">Comprobante de Domicilio</h4>
+                        {resident.documentoComprobanteDomicilio ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.open(`http://localhost:3001${resident.documentoComprobanteDomicilio}`, '_blank')}
+                          >
+                            <FileText className="h-4 w-4 mr-2" />
+                            Ver Documento
+                          </Button>
+                        ) : (
+                          <span className="text-gray-500 text-sm">No disponible</span>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Acta de Nacimiento */}
+                    <div className="border rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-medium">Acta de Nacimiento</h4>
+                        {resident.documentoActaNacimiento ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.open(`http://localhost:3001${resident.documentoActaNacimiento}`, '_blank')}
+                          >
+                            <FileText className="h-4 w-4 mr-2" />
+                            Ver Documento
+                          </Button>
+                        ) : (
+                          <span className="text-gray-500 text-sm">No disponible</span>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* INE */}
+                    <div className="border rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-medium">INE</h4>
+                        {resident.documentoIne ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.open(`http://localhost:3001${resident.documentoIne}`, '_blank')}
+                          >
+                            <FileText className="h-4 w-4 mr-2" />
+                            Ver Documento
+                          </Button>
+                        ) : (
+                          <span className="text-gray-500 text-sm">No disponible</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+            
             {/* Información Financiera - Solo para Administradores */}
             {isAdmin && (
               <TabsContent value="financial" className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg">Estado de Cuenta</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                        <span className="font-medium">Saldo Actual</span>
-                        <span className="text-lg font-bold text-green-600">$15,450.00</span>
-                      </div>
-                      
-                      <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
-                        <span className="font-medium">Mantenimiento Mensual</span>
-                        <span className="text-lg font-bold text-blue-600">$2,800.00</span>
-                      </div>
-                      
-                      <div className="flex justify-between items-center p-3 bg-orange-50 rounded-lg">
-                        <span className="font-medium">Último Pago</span>
-                        <span className="text-lg font-bold text-orange-600">15/Jan/2024</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg">Historial de Pagos</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm border-b pb-2">
-                          <span>Enero 2024</span>
-                          <span className="text-green-600 font-medium">$2,800.00</span>
-                        </div>
-                        <div className="flex justify-between text-sm border-b pb-2">
-                          <span>Diciembre 2023</span>
-                          <span className="text-green-600 font-medium">$2,800.00</span>
-                        </div>
-                        <div className="flex justify-between text-sm border-b pb-2">
-                          <span>Noviembre 2023</span>
-                          <span className="text-green-600 font-medium">$2,800.00</span>
-                        </div>
-                        <div className="flex justify-between text-sm border-b pb-2">
-                          <span>Octubre 2023</span>
-                          <span className="text-red-600 font-medium">Pendiente</span>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-                
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg">Cargos Adicionales</CardTitle>
+                    <CardTitle className="text-lg">Estado de Cuenta</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm border-b pb-2">
-                        <span>Estacionamiento adicional</span>
-                        <span className="font-medium">$500.00/mes</span>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Estado Financiero */}
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
+                          <span className="font-medium">Deuda Actual</span>
+                          <span className={`text-lg font-bold ${resident.deudaActual > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                            ${resident.deudaActual.toLocaleString()}
+                          </span>
+                        </div>
+                        
+                        <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+                          <span className="font-medium">Total Pagos Realizados</span>
+                          <span className="text-lg font-bold text-green-600">
+                            ${resident.pagosRealizados.toLocaleString()}
+                          </span>
+                        </div>
+                        
+                        <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+                          <span className="font-medium">Deuda INVI</span>
+                          <span className={`text-lg font-bold ${(resident.inviInfo?.deuda || 0) > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                            ${(resident.inviInfo?.deuda || 0).toLocaleString()}
+                          </span>
+                        </div>
+                        
+                        <div className="flex justify-between items-center p-3 bg-orange-50 rounded-lg">
+                          <span className="font-medium">Estado General</span>
+                          <span className={`text-lg font-bold ${
+                            (resident.deudaActual + (resident.inviInfo?.deuda || 0)) > 0 
+                              ? 'text-red-600' 
+                              : 'text-green-600'
+                          }`}>
+                            {(resident.deudaActual + (resident.inviInfo?.deuda || 0)) > 0 ? 'Con Adeudo' : 'Al Corriente'}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex justify-between text-sm border-b pb-2">
-                        <span>Uso de amenidades</span>
-                        <span className="font-medium">$200.00/mes</span>
-                      </div>
-                      <div className="flex justify-between text-sm border-b pb-2">
-                        <span>Mascotas</span>
-                        <span className="font-medium">$150.00/mes</span>
+                      
+                      {/* Historial de Pagos */}
+                      <div>
+                        <h3 className="text-lg font-medium mb-4">Historial de Pagos</h3>
+                        <div className="space-y-2 max-h-64 overflow-y-auto">
+                          {resident.payments && resident.payments.length > 0 ? (
+                            resident.payments.slice(0, 5).map((payment, index) => (
+                              <div key={payment.id || index} className="flex justify-between text-sm border-b pb-2">
+                                <div>
+                                  <span className="block">{new Date(payment.date).toLocaleDateString('es-MX')}</span>
+                                  <span className="text-xs text-muted-foreground">{payment.description || payment.type}</span>
+                                </div>
+                                <span className="text-green-600 font-medium">
+                                  ${payment.amount.toLocaleString()}
+                                </span>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="text-sm text-muted-foreground text-center py-4">
+                              No hay pagos registrados
+                            </div>
+                          )}
+                          
+                          {resident.payments && resident.payments.length > 5 && (
+                            <div className="text-sm text-muted-foreground text-center pt-2">
+                              Y {resident.payments.length - 5} pagos más...
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </CardContent>
@@ -322,92 +424,71 @@ const ResidentDetailModal: React.FC<ResidentDetailModalProps> = ({
             {/* Información INVI - Solo para Administradores */}
             {isAdmin && (
               <TabsContent value="invi" className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg">Información INVI</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="space-y-3">
-                        <div className="flex justify-between">
-                          <span className="font-medium">Número de Expediente:</span>
-                          <span>INVI-{resident.id}-2024</span>
-                        </div>
-                        
-                        <div className="flex justify-between">
-                          <span className="font-medium">Programa:</span>
-                          <span>Vivienda Social Urbana</span>
-                        </div>
-                        
-                        <div className="flex justify-between">
-                          <span className="font-medium">Fecha de Asignación:</span>
-                          <span>{new Date(resident.registrationDate).toLocaleDateString()}</span>
-                        </div>
-                        
-                        <div className="flex justify-between">
-                          <span className="font-medium">Tipo de Beneficio:</span>
-                          <span>Subsidio Habitacional</span>
-                        </div>
-                        
-                        <div className="flex justify-between">
-                          <span className="font-medium">Estado del Crédito:</span>
-                          <Badge variant="default" className="bg-success text-white">
-                            Al Corriente
-                          </Badge>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg">Documentos INVI</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between p-2 border rounded">
-                          <span className="text-sm">Contrato de Arrendamiento</span>
-                          <Button variant="outline" size="sm">Ver</Button>
-                        </div>
-                        
-                        <div className="flex items-center justify-between p-2 border rounded">
-                          <span className="text-sm">Acreditación INVI</span>
-                          <Button variant="outline" size="sm">Ver</Button>
-                        </div>
-                        
-                        <div className="flex items-center justify-between p-2 border rounded">
-                          <span className="text-sm">Comprobante de Ingresos</span>
-                          <Button variant="outline" size="sm">Ver</Button>
-                        </div>
-                        
-                        <div className="flex items-center justify-between p-2 border rounded">
-                          <span className="text-sm">Historial Crediticio</span>
-                          <Button variant="outline" size="sm">Ver</Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-                
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg">Detalles del Crédito</CardTitle>
+                    <CardTitle className="text-lg">Información INVI</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="text-center p-4 bg-blue-50 rounded-lg">
-                        <div className="text-2xl font-bold text-blue-600">$580,000</div>
-                        <div className="text-sm text-blue-800">Monto del Crédito</div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {/* Información General */}
+                      <div className="space-y-4">
+                        <h3 className="text-md font-semibold text-gray-700 border-b pb-2">Datos Generales</h3>
+                        <div className="space-y-3">
+                          <div className="flex justify-between">
+                            <span className="font-medium text-gray-600">ID INVI:</span>
+                            <span className="font-semibold">{resident.inviInfo?.idInvi || 'No asignado'}</span>
+                          </div>
+                          
+                          <div className="flex justify-between">
+                            <span className="font-medium text-gray-600">Mensualidades:</span>
+                            <span className="font-semibold">{resident.inviInfo?.mensualidades || 'No especificado'}</span>
+                          </div>
+                          
+                          <div className="flex justify-between">
+                            <span className="font-medium text-gray-600">ID Compañero:</span>
+                            <span className="font-semibold">{resident.inviInfo?.idCompanero || 'No asignado'}</span>
+                          </div>
+                        </div>
                       </div>
                       
-                      <div className="text-center p-4 bg-green-50 rounded-lg">
-                        <div className="text-2xl font-bold text-green-600">$245,000</div>
-                        <div className="text-sm text-green-800">Pagado</div>
+                      {/* Información Financiera INVI */}
+                      <div className="space-y-4">
+                        <h3 className="text-md font-semibold text-gray-700 border-b pb-2">Estado Financiero</h3>
+                        <div className="space-y-3">
+                          <div className="flex justify-between">
+                            <span className="font-medium text-gray-600">Deuda INVI:</span>
+                            <span className={`text-lg font-bold ${(resident.inviInfo?.deuda || 0) > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                              ${(resident.inviInfo?.deuda || 0).toLocaleString()}
+                            </span>
+                          </div>
+                          
+                          <div className="flex justify-between">
+                            <span className="font-medium text-gray-600">Estado:</span>
+                            <Badge variant="default" className={
+                              (resident.inviInfo?.deuda || 0) > 0 
+                                ? 'bg-red-500 text-white' 
+                                : 'bg-green-500 text-white'
+                            }>
+                              {(resident.inviInfo?.deuda || 0) > 0 ? 'Con Adeudo' : 'Al Corriente'}
+                            </Badge>
+                          </div>
+                        </div>
                       </div>
                       
-                      <div className="text-center p-4 bg-orange-50 rounded-lg">
-                        <div className="text-2xl font-bold text-orange-600">$335,000</div>
-                        <div className="text-sm text-orange-800">Saldo Pendiente</div>
+                      {/* Información de Fechas */}
+                      <div className="space-y-4">
+                        <h3 className="text-md font-semibold text-gray-700 border-b pb-2">Fechas Importantes</h3>
+                        <div className="space-y-3">
+                          <div className="flex justify-between">
+                            <span className="font-medium text-gray-600">Fecha de Contrato:</span>
+                            <span className="font-semibold">
+                              {resident.inviInfo?.fechaContrato 
+                                ? new Date(resident.inviInfo.fechaContrato).toLocaleDateString('es-MX')
+                                : 'No especificada'
+                              }
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </CardContent>

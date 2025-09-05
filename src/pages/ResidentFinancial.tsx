@@ -3,9 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft } from 'lucide-react';
-import { residents } from '@/data/mockData';
 import { useEffect, useState } from 'react';
 import Header from '@/components/Header';
+import { residentService } from '@/services/api';
 
 const ResidentFinancial = () => {
   const { id } = useParams();
@@ -13,18 +13,20 @@ const ResidentFinancial = () => {
   const [resident, setResident] = useState<any>(null);
 
   useEffect(() => {
-    if (id) {
-      fetch(`/api/residents`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('authToken')}`
-        }
-      })
-        .then(res => res.json())
-        .then(data => {
-          const found = data.find((r: any) => r.id === id);
-          setResident(found);
-        });
-    }
+    const loadResident = async () => {
+      if (!id) return;
+      
+      try {
+        console.log('ResidentFinancial: Loading resident from API...', id);
+        const data = await residentService.getById(id);
+        console.log('ResidentFinancial: Loaded resident:', data);
+        setResident(data);
+      } catch (error) {
+        console.error('ResidentFinancial: Error loading resident:', error);
+      }
+    };
+
+    loadResident();
   }, [id]);
 
   if (!resident) {

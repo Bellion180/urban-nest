@@ -13,9 +13,9 @@ import { SeleccionNivel } from "./components/SeleccionNivel";
 import FloorResidents from "./components/FloorResidents";
 import BuildingResidents from "./components/BuildingResidents";
 import ResidentDetail from "./components/ResidentDetail";
-import ResidentFinancial from "./pages/ResidentFinancial";
-import ResidentPersonal from "./pages/ResidentPersonal";
-import ResidentInvi from "./pages/ResidentInvi";
+import ResidentFinancialInfo from "./components/ResidentFinancialInfo";
+import ResidentPersonalInfo from "./components/ResidentPersonalInfo";
+import ResidentInviInfo from "./components/ResidentInviInfo";
 import AdminPanel from "./components/AdminPanel";
 import NotFound from "./pages/NotFound";
 import AddAssociate from './components/AddAssociate';
@@ -39,9 +39,9 @@ const App = () => (
             <Route path="/building/:buildingId/niveles" element={<SeleccionNivel />} />
             <Route path="/building/:buildingId/floor/:floorNumber/residents" element={<FloorResidents />} />
             <Route path="/resident/:residentId" element={<ResidentDetail />} />
-            <Route path="/resident/:id/financial" element={<ResidentFinancial />} />
-            <Route path="/resident/:id/personal" element={<ResidentPersonal />} />
-            <Route path="/resident/:id/invi" element={<ResidentInvi />} />
+            <Route path="/resident/:residentId/financial" element={<ResidentFinancialInfo />} />
+            <Route path="/resident/:residentId/personal" element={<ResidentPersonalInfo />} />
+            <Route path="/resident/:residentId/invi" element={<ResidentInviInfo />} />
             <Route path="/admin" element={<AdminPanel />} />
             <Route path="/add-associate" element={<AddAssociate />} />
             <Route path="/add-resident" element={<AddResident />} />

@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Loader2, Plus } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ArrowLeft, Loader2, Plus, User, DollarSign, FileText, Upload } from 'lucide-react';
 import Header from './Header';
 import { toast } from '@/hooks/use-toast';
 import { buildingService, residentService } from '@/services/api';
@@ -34,13 +35,44 @@ const AddResident = () => {
   const [selectedFloor, setSelectedFloor] = useState<string>('');
   const [selectedApartment, setSelectedApartment] = useState<string>('');
   const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
+  
+  // Estados para documentos PDF
+  const [documents, setDocuments] = useState({
+    curp: null as File | null,
+    comprobanteDomicilio: null as File | null,
+    actaNacimiento: null as File | null,
+    ine: null as File | null,
+  });
+
+  // Función para manejar cambios de documentos
+  const handleDocumentChange = (documentType: keyof typeof documents, file: File | null) => {
+    setDocuments(prev => ({
+      ...prev,
+      [documentType]: file
+    }));
+  };
 
   const [formData, setFormData] = useState({
+    // Información personal
     nombre: '',
     apellido: '',
     email: '',
     telefono: '',
-    fechaNacimiento: ''
+    fechaNacimiento: '',
+    edad: '',
+    noPersonas: '',
+    discapacidad: false,
+    
+    // Información financiera
+    deudaActual: '',
+    pagosRealizados: '',
+    
+    // Información INVI
+    idInvi: '',
+    mensualidades: '',
+    fechaContrato: '',
+    deuda: '',
+    idCompanero: ''
   });
 
   // Cargar edificios al montar el componente
@@ -64,39 +96,29 @@ const AddResident = () => {
     loadBuildings();
   }, []);
 
-  // Obtener pisos del edificio seleccionado
-  const getFloorsForBuilding = () => {
-    const building = buildings.find(b => b.id === selectedBuilding);
-    return building?.floors || [];
-  };
-
-  // Obtener apartamentos del piso seleccionado
-  const getApartmentsForFloor = () => {
-    const floors = getFloorsForBuilding();
-    const floor = floors.find(f => f.id === selectedFloor);
-    return floor?.apartments || [];
-  };
-
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
   };
 
+  // Funciones para manejar las selecciones
+  const getFloorsForBuilding = () => {
+    const building = buildings.find(b => b.id === selectedBuilding);
+    return building?.floors || [];
+  };
+
+  const getApartmentsForFloor = () => {
+    const building = buildings.find(b => b.id === selectedBuilding);
+    const floor = building?.floors.find(f => f.id === selectedFloor);
+    return floor?.apartments || [];
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!isAdmin) {
-      toast({
-        title: "Error",
-        description: "Solo los administradores pueden agregar residentes",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!selectedApartment) {
+    if (!selectedBuilding || !selectedFloor || !selectedApartment) {
       toast({
         title: "Error",
         description: "Por favor selecciona un apartamento",
@@ -121,11 +143,37 @@ const AddResident = () => {
 
       // Preparar los datos para el servicio
       const residentData = {
-        ...formData,
+        // Información personal
+        nombre: formData.nombre,
+        apellido: formData.apellido,
+        email: formData.email || undefined,
+        telefono: formData.telefono || undefined,
+        fechaNacimiento: formData.fechaNacimiento || undefined,
+        edad: formData.edad ? parseInt(formData.edad) : undefined,
+        noPersonas: formData.noPersonas ? parseInt(formData.noPersonas) : undefined,
+        discapacidad: formData.discapacidad,
+        
+        // Información financiera
+        deudaActual: formData.deudaActual ? parseFloat(formData.deudaActual) : 0,
+        pagosRealizados: formData.pagosRealizados ? parseFloat(formData.pagosRealizados) : 0,
+        
+        // Información de ubicación
         apartmentNumber: selectedApartment,
         buildingId: selectedBuilding,
         floorNumber: floorNumber,
-        profilePhoto: profilePhoto || undefined
+        profilePhoto: profilePhoto || undefined,
+        
+        // Documentos PDF
+        documents: documents,
+        
+        // Información INVI
+        inviInfo: {
+          idInvi: formData.idInvi || undefined,
+          mensualidades: formData.mensualidades ? parseInt(formData.mensualidades) : undefined,
+          fechaContrato: formData.fechaContrato || undefined,
+          deuda: formData.deuda ? parseFloat(formData.deuda) : 0,
+          idCompanero: formData.idCompanero || undefined
+        }
       };
 
       // Crear el residente usando el servicio
@@ -150,28 +198,28 @@ const AddResident = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <Header />
       
-      <main className="container mx-auto p-6">
-        <div className="flex justify-between items-center mb-6">
-          <Button 
-            variant="outline" 
-            onClick={() => navigate('/admin')}
-            disabled={loading}
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Volver al Panel
-          </Button>
-        </div>
-
+      <main className="container mx-auto px-4 py-8">
         <Card className="max-w-4xl mx-auto">
-          <CardHeader>
-            <CardTitle className="text-2xl flex items-center gap-2">
-              <Plus className="h-6 w-6" />
+          <CardHeader className="space-y-1">
+            <div className="flex items-center gap-4">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => navigate('/admin')}
+                className="hover:bg-gray-100"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Volver
+              </Button>
+            </div>
+            <CardTitle className="text-2xl font-bold text-center">
               Agregar Nuevo Residente
             </CardTitle>
           </CardHeader>
+          
           <CardContent>
             {loadingBuildings ? (
               <div className="flex items-center justify-center py-8">
@@ -180,86 +228,313 @@ const AddResident = () => {
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Información Personal */}
+                <Tabs defaultValue="personal" className="w-full">
+                  <TabsList className="grid w-full grid-cols-4">
+                    <TabsTrigger value="personal" className="flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      Personal
+                    </TabsTrigger>
+                    <TabsTrigger value="financiera" className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4" />
+                      Financiera
+                    </TabsTrigger>
+                    <TabsTrigger value="invi" className="flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      INVI
+                    </TabsTrigger>
+                    <TabsTrigger value="documentos" className="flex items-center gap-2">
+                      <Upload className="h-4 w-4" />
+                      Documentos
+                    </TabsTrigger>
+                  </TabsList>
+
+                  {/* Información Personal */}
+                  <TabsContent value="personal" className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="nombre">Nombre *</Label>
+                        <Input 
+                          id="nombre" 
+                          placeholder="Nombre del residente" 
+                          value={formData.nombre}
+                          onChange={(e) => handleInputChange('nombre', e.target.value)}
+                          required 
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="apellido">Apellidos *</Label>
+                        <Input 
+                          id="apellido" 
+                          placeholder="Apellidos del residente" 
+                          value={formData.apellido}
+                          onChange={(e) => handleInputChange('apellido', e.target.value)}
+                          required 
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="email">Email</Label>
+                        <Input 
+                          id="email" 
+                          type="email" 
+                          placeholder="Correo electrónico" 
+                          value={formData.email}
+                          onChange={(e) => handleInputChange('email', e.target.value)}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="telefono">Teléfono</Label>
+                        <Input 
+                          id="telefono" 
+                          placeholder="Número de teléfono" 
+                          value={formData.telefono}
+                          onChange={(e) => handleInputChange('telefono', e.target.value)}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="fechaNacimiento">Fecha de Nacimiento</Label>
+                        <Input 
+                          id="fechaNacimiento" 
+                          type="date" 
+                          value={formData.fechaNacimiento}
+                          onChange={(e) => handleInputChange('fechaNacimiento', e.target.value)}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="edad">Edad</Label>
+                        <Input 
+                          id="edad" 
+                          type="number"
+                          placeholder="Edad" 
+                          value={formData.edad}
+                          onChange={(e) => handleInputChange('edad', e.target.value)}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="noPersonas">Número de Personas</Label>
+                        <Input 
+                          id="noPersonas" 
+                          type="number"
+                          placeholder="Personas en el apartamento" 
+                          value={formData.noPersonas}
+                          onChange={(e) => handleInputChange('noPersonas', e.target.value)}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="discapacidad">¿Tiene discapacidad?</Label>
+                        <Select 
+                          value={formData.discapacidad ? 'true' : 'false'}
+                          onValueChange={(value) => handleInputChange('discapacidad', value === 'true')}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleccionar" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="false">No</SelectItem>
+                            <SelectItem value="true">Sí</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    {/* Foto de Perfil */}
+                    <div className="space-y-2">
+                      <Label htmlFor="profilePhoto">Foto de Perfil</Label>
+                      <Input 
+                        id="profilePhoto" 
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setProfilePhoto(e.target.files?.[0] || null)}
+                        className="cursor-pointer"
+                      />
+                      {profilePhoto && (
+                        <p className="text-sm text-green-600">
+                          Archivo seleccionado: {profilePhoto.name}
+                        </p>
+                      )}
+                    </div>
+                  </TabsContent>
+
+                  {/* Información Financiera */}
+                  <TabsContent value="financiera" className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="deudaActual">Deuda Actual ($)</Label>
+                        <Input 
+                          id="deudaActual" 
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00" 
+                          value={formData.deudaActual}
+                          onChange={(e) => handleInputChange('deudaActual', e.target.value)}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="pagosRealizados">Pagos Realizados ($)</Label>
+                        <Input 
+                          id="pagosRealizados" 
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00" 
+                          value={formData.pagosRealizados}
+                          onChange={(e) => handleInputChange('pagosRealizados', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  {/* Información INVI */}
+                  <TabsContent value="invi" className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="idInvi">ID INVI</Label>
+                        <Input 
+                          id="idInvi" 
+                          placeholder="Identificador INVI" 
+                          value={formData.idInvi}
+                          onChange={(e) => handleInputChange('idInvi', e.target.value)}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="mensualidades">Mensualidades</Label>
+                        <Input 
+                          id="mensualidades" 
+                          type="number"
+                          placeholder="Número de mensualidades" 
+                          value={formData.mensualidades}
+                          onChange={(e) => handleInputChange('mensualidades', e.target.value)}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="fechaContrato">Fecha de Contrato</Label>
+                        <Input 
+                          id="fechaContrato" 
+                          type="date" 
+                          value={formData.fechaContrato}
+                          onChange={(e) => handleInputChange('fechaContrato', e.target.value)}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="deuda">Deuda INVI ($)</Label>
+                        <Input 
+                          id="deuda" 
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00" 
+                          value={formData.deuda}
+                          onChange={(e) => handleInputChange('deuda', e.target.value)}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="idCompanero">ID Compañero</Label>
+                        <Input 
+                          id="idCompanero" 
+                          placeholder="ID del compañero" 
+                          value={formData.idCompanero}
+                          onChange={(e) => handleInputChange('idCompanero', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  {/* Documentos PDF */}
+                  <TabsContent value="documentos" className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* CURP */}
+                      <div className="space-y-2">
+                        <Label htmlFor="curp">CURP (PDF)</Label>
+                        <Input 
+                          id="curp" 
+                          type="file"
+                          accept=".pdf"
+                          onChange={(e) => handleDocumentChange('curp', e.target.files?.[0] || null)}
+                          className="cursor-pointer"
+                        />
+                        {documents.curp && (
+                          <p className="text-sm text-green-600">
+                            Archivo seleccionado: {documents.curp.name}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Comprobante de Domicilio */}
+                      <div className="space-y-2">
+                        <Label htmlFor="comprobanteDomicilio">Comprobante de Domicilio (PDF)</Label>
+                        <Input 
+                          id="comprobanteDomicilio" 
+                          type="file"
+                          accept=".pdf"
+                          onChange={(e) => handleDocumentChange('comprobanteDomicilio', e.target.files?.[0] || null)}
+                          className="cursor-pointer"
+                        />
+                        {documents.comprobanteDomicilio && (
+                          <p className="text-sm text-green-600">
+                            Archivo seleccionado: {documents.comprobanteDomicilio.name}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Acta de Nacimiento */}
+                      <div className="space-y-2">
+                        <Label htmlFor="actaNacimiento">Acta de Nacimiento (PDF)</Label>
+                        <Input 
+                          id="actaNacimiento" 
+                          type="file"
+                          accept=".pdf"
+                          onChange={(e) => handleDocumentChange('actaNacimiento', e.target.files?.[0] || null)}
+                          className="cursor-pointer"
+                        />
+                        {documents.actaNacimiento && (
+                          <p className="text-sm text-green-600">
+                            Archivo seleccionado: {documents.actaNacimiento.name}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* INE */}
+                      <div className="space-y-2">
+                        <Label htmlFor="ine">INE (PDF)</Label>
+                        <Input 
+                          id="ine" 
+                          type="file"
+                          accept=".pdf"
+                          onChange={(e) => handleDocumentChange('ine', e.target.files?.[0] || null)}
+                          className="cursor-pointer"
+                        />
+                        {documents.ine && (
+                          <p className="text-sm text-green-600">
+                            Archivo seleccionado: {documents.ine.name}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <h4 className="font-medium text-blue-900 mb-2">Información sobre documentos</h4>
+                      <ul className="text-sm text-blue-800 space-y-1">
+                        <li>• Solo se aceptan archivos en formato PDF</li>
+                        <li>• Los documentos se guardarán de forma segura</li>
+                        <li>• Todos los documentos son opcionales durante el registro</li>
+                        <li>• Pueden agregarse o actualizarse posteriormente</li>
+                      </ul>
+                    </div>
+                  </TabsContent>
+                </Tabs>
+
+                {/* Selección de Ubicación */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold border-b pb-2">Información Personal</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="nombre">Nombre *</Label>
-                      <Input 
-                        id="nombre" 
-                        placeholder="Nombre del residente" 
-                        value={formData.nombre}
-                        onChange={(e) => handleInputChange('nombre', e.target.value)}
-                        required 
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="apellido">Apellidos *</Label>
-                      <Input 
-                        id="apellido" 
-                        placeholder="Apellidos del residente" 
-                        value={formData.apellido}
-                        onChange={(e) => handleInputChange('apellido', e.target.value)}
-                        required 
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email</Label>
-                      <Input 
-                        id="email" 
-                        type="email" 
-                        placeholder="Correo electrónico" 
-                        value={formData.email}
-                        onChange={(e) => handleInputChange('email', e.target.value)}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="telefono">Teléfono</Label>
-                      <Input 
-                        id="telefono" 
-                        placeholder="Número de teléfono" 
-                        value={formData.telefono}
-                        onChange={(e) => handleInputChange('telefono', e.target.value)}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="fechaNacimiento">Fecha de Nacimiento</Label>
-                      <Input 
-                        id="fechaNacimiento" 
-                        type="date" 
-                        value={formData.fechaNacimiento}
-                        onChange={(e) => handleInputChange('fechaNacimiento', e.target.value)}
-                      />
-                    </div>
-
-                  </div>
-
-                  {/* Foto de Perfil */}
-                  <div className="space-y-2">
-                    <Label htmlFor="profilePhoto">Foto de Perfil</Label>
-                    <Input 
-                      id="profilePhoto" 
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setProfilePhoto(e.target.files?.[0] || null)}
-                      className="cursor-pointer"
-                    />
-                    {profilePhoto && (
-                      <p className="text-sm text-green-600">
-                        ✓ {profilePhoto.name}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Ubicación */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold border-b pb-2">Ubicación</h3>
+                  <h3 className="text-lg font-semibold">Ubicación</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="edificio">Edificio *</Label>

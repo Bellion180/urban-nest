@@ -8,6 +8,7 @@ import { useEffect, useContext } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Resident } from '@/types/user';
 import ResidentDetailModal from './ResidentDetailModal';
+import EditResidentModal from './EditResidentModal';
 import SimplePhotoModal from './SimplePhotoModal';
 import BuildingManagement from './BuildingManagement';
 import { 
@@ -17,6 +18,7 @@ import {
   UserCheck, 
   UserX,
   Eye,
+  Edit,
   Settings,
   Plus,
   Building,
@@ -35,6 +37,7 @@ const AdminPanel = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedResident, setSelectedResident] = useState<Resident | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
   const [currentPhoto, setCurrentPhoto] = useState('');
   const [showBuildingModal, setShowBuildingModal] = useState(false);
@@ -105,6 +108,17 @@ const AdminPanel = () => {
   const handleViewResident = (resident: Resident) => {
     setSelectedResident(resident);
     setIsDetailModalOpen(true);
+  };
+
+  const handleEditResident = (resident: Resident) => {
+    setSelectedResident(resident);
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdateResident = (updatedResident: Resident) => {
+    setResidents(prev => prev.map(resident => 
+      resident.id === updatedResident.id ? updatedResident : resident
+    ));
   };
 
   const handlePhotoClick = (photo: string) => {
@@ -303,6 +317,18 @@ const AdminPanel = () => {
                     {isAdmin && (
                       <Button
                         size="sm"
+                        variant="secondary"
+                        onClick={() => handleEditResident(resident)}
+                        className="flex-1 sm:flex-none text-xs sm:text-sm"
+                      >
+                        <Edit className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                        <span className="hidden sm:inline">Editar</span>
+                        <span className="sm:hidden">Edit.</span>
+                      </Button>
+                    )}
+                    {isAdmin && (
+                      <Button
+                        size="sm"
                         variant={resident.estatus === 'ACTIVO' ? 'destructive' : 'default'}
                         onClick={() => toggleResidentStatus(resident.id)}
                         className="flex-1 sm:flex-none text-xs sm:text-sm"
@@ -363,6 +389,15 @@ const AdminPanel = () => {
           isOpen={isDetailModalOpen}
           onClose={() => setIsDetailModalOpen(false)}
           onPhotoClick={handlePhotoClick}
+        />
+      )}
+
+      {selectedResident && (
+        <EditResidentModal
+          resident={selectedResident}
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          onUpdate={handleUpdateResident}
         />
       )}
       

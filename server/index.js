@@ -17,10 +17,10 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Configuración CORS más simple y permisiva para desarrollo (funcionó en el servidor de prueba)
+// Configuración CORS simple pero completa para desarrollo
 const corsOptions = {
   origin: true, // Permite todos los orígenes en desarrollo
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 };

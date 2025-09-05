@@ -4,28 +4,23 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Users, ArrowLeft, UserCheck, Phone, Mail, Building, Home } from 'lucide-react';
 import { residentService, buildingService } from '@/services/api';
+import { Resident } from '@/types/user';
 import Header from './Header';
 import ResidentDetailModal from './ResidentDetailModal';
 import SimplePhotoModal from './SimplePhotoModal';
 
-interface Resident {
-  id: string;
-  nombre: string;
-  apellido: string;
-  edad: number;
-  email: string;
-  telefono: string;
-  profilePhoto?: string;
-  estatus: string;
-  hasKey: boolean;
+interface FloorResident extends Resident {
   apartamento: string;
   piso: string;
   pisoNumero: number;
-  deudaActual: number;
-  pagosRealizados?: number;
-  noPersonas?: number;
-  discapacidad?: string;
-  informe?: string;
+  edificio: string;
+  recentPayments?: Array<{
+    id: string;
+    amount: number;
+    type: string;
+    description?: string;
+    date: string;
+  }>;
 }
 
 interface BuildingData {
@@ -37,11 +32,11 @@ interface BuildingData {
 export const FloorResidents = () => {
   const { buildingId, floorNumber } = useParams<{ buildingId: string; floorNumber: string }>();
   const navigate = useNavigate();
-  const [residents, setResidents] = useState<Resident[]>([]);
+  const [residents, setResidents] = useState<FloorResident[]>([]);
   const [buildingData, setBuildingData] = useState<BuildingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedResident, setSelectedResident] = useState<any>(null);
+  const [selectedResident, setSelectedResident] = useState<FloorResident | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<string>('');
@@ -79,30 +74,9 @@ export const FloorResidents = () => {
     navigate(`/building/${buildingId}/niveles`);
   };
 
-  const handleResidentClick = (resident: Resident) => {
-    // Convertir el formato del residente para que coincida con lo que espera el modal
-    const formattedResident = {
-      id: resident.id,
-      nombre: resident.nombre,
-      apellido: resident.apellido,
-      edad: resident.edad,
-      email: resident.email,
-      telefono: resident.telefono,
-      profilePhoto: resident.profilePhoto,
-      estatus: resident.estatus,
-      hasKey: resident.hasKey,
-      apartamento: resident.apartamento,
-      piso: resident.piso,
-      pisoNumero: resident.pisoNumero,
-      deudaActual: resident.deudaActual,
-      pagosRealizados: resident.pagosRealizados || 0,
-      noPersonas: resident.noPersonas,
-      discapacidad: resident.discapacidad,
-      informe: resident.informe,
-      edificio: buildingData?.name || 'Sin nombre'
-    };
-    
-    setSelectedResident(formattedResident);
+  const handleResidentClick = (resident: FloorResident) => {
+    console.log('FloorResidents: Resident data for modal:', resident);
+    setSelectedResident(resident);
     setShowModal(true);
   };
 

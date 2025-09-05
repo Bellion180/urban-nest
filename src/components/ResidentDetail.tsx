@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { residents } from '@/data/mockData';
+import { Resident } from '@/types/user';
+import { residentService } from '@/services/api';
 import { 
   ArrowLeft, 
   Phone, 
@@ -23,8 +24,40 @@ import Header from './Header';
 const ResidentDetail = () => {
   const { residentId } = useParams();
   const navigate = useNavigate();
-  
-  const resident = residents.find(r => r.id === residentId);
+  const [resident, setResident] = useState<Resident | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadResident = async () => {
+      if (!residentId) return;
+      
+      try {
+        console.log('ResidentDetail: Loading resident from API...', residentId);
+        const data = await residentService.getById(residentId);
+        console.log('ResidentDetail: Loaded resident:', data);
+        setResident(data);
+      } catch (error) {
+        console.error('ResidentDetail: Error loading resident:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadResident();
+  }, [residentId]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="container mx-auto p-6">
+          <div className="flex justify-center items-center h-64">
+            <p>Cargando residente...</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   if (!resident) {
     return <div>Residente no encontrado</div>;

@@ -4,7 +4,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { buildings, residents } from '@/data/mockData';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ArrowLeft, Phone, Mail, MapPin, Wallet, User, Building } from 'lucide-react';
@@ -21,25 +20,35 @@ const BuildingResidents = () => {
   const [buildingResidents, setBuildingResidents] = useState<any[]>([]);
 
   useEffect(() => {
+    console.log('🔍 BuildingResidents - Building ID:', buildingId);
+    
     // Obtener edificio desde la API
-    fetch(`/api/buildings`, {
+    fetch(`http://localhost:3001/api/buildings`, {
       headers: {
         Authorization: `Bearer ${localStorage.getItem('authToken')}`
       }
     })
       .then(res => res.json())
       .then(data => {
+        console.log('🏢 Buildings API response:', data);
         const found = data.find((b: any) => b.id === buildingId);
+        console.log('🏢 Found building:', found);
         setBuilding(found);
-      });
+      })
+      .catch(err => console.error('Error fetching building:', err));
+    
     // Obtener residentes desde la API
-    fetch(`/api/residents?building=${buildingId}`, {
+    fetch(`http://localhost:3001/api/residents?building=${buildingId}`, {
       headers: {
         Authorization: `Bearer ${localStorage.getItem('authToken')}`
       }
     })
       .then(res => res.json())
-      .then(data => setBuildingResidents(data));
+      .then(data => {
+        console.log('👥 Residents API response:', data);
+        setBuildingResidents(data);
+      })
+      .catch(err => console.error('Error fetching residents:', err));
   }, [buildingId]);
 
   if (!building) {
@@ -102,7 +111,7 @@ const BuildingResidents = () => {
               <CardContent className="p-4 sm:p-6">
                 <div className="flex flex-col sm:flex-row sm:items-start space-y-3 sm:space-y-0 sm:space-x-4">
                   <img 
-                    src={resident.foto} 
+                    src={resident.profilePhoto ? `http://localhost:3001${resident.profilePhoto}` : '/placeholder.svg'} 
                     alt={`${resident.nombre} ${resident.apellido}`}
                     className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover mx-auto sm:mx-0 flex-shrink-0"
                   />
@@ -113,8 +122,8 @@ const BuildingResidents = () => {
                         {resident.nombre} {resident.apellido}
                       </h3>
                       <Badge 
-                        variant={resident.estatus === 'activo' ? 'default' : 'destructive'}
-                        className={`text-xs flex-shrink-0 ${resident.estatus === 'activo' 
+                        variant={resident.estatus === 'ACTIVO' ? 'default' : 'destructive'}
+                        className={`text-xs flex-shrink-0 ${resident.estatus === 'ACTIVO' 
                           ? 'bg-success text-white' 
                           : 'bg-destructive text-white'
                         }`}
@@ -129,19 +138,26 @@ const BuildingResidents = () => {
                         <span>Apartamento {resident.apartamento}</span>
                       </div>
                       
-                      <div className="flex items-center justify-center sm:justify-start space-x-2">
-                        <Phone className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
-                        <span className="truncate">{resident.telefono}</span>
-                      </div>
+                      {resident.telefono && (
+                        <div className="flex items-center justify-center sm:justify-start space-x-2">
+                          <Phone className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                          <span className="truncate">{resident.telefono}</span>
+                        </div>
+                      )}
                       
-                      <div className="flex items-center justify-center sm:justify-start space-x-2">
-                        <Mail className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
-                        <span className="truncate text-xs">{resident.email}</span>
-                      </div>
+                      {resident.email && (
+                        <div className="flex items-center justify-center sm:justify-start space-x-2">
+                          <Mail className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                          <span className="truncate text-xs">{resident.email}</span>
+                        </div>
+                      )}
                     </div>
                     
                     <div className="mt-3 text-xs text-center sm:text-left text-muted-foreground">
-                      <p className="truncate">{resident.profesion}</p>
+                      <p className="truncate">
+                        {resident.edad ? `${resident.edad} años` : ''}
+                        {resident.noPersonas ? ` • ${resident.noPersonas} personas` : ''}
+                      </p>
                     </div>
                   </div>
                 </div>

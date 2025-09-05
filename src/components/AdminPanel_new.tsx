@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { residents as initialResidents } from '@/data/mockData';
 import { Resident } from '@/types/user';
+import { residentService } from '@/services/api';
 import ResidentDetailModal from './ResidentDetailModal';
 import PhotoModal from './PhotoModal';
 import { 
@@ -23,12 +23,31 @@ import { toast } from '@/hooks/use-toast';
 
 const AdminPanel = () => {
   const navigate = useNavigate();
-  const [residents, setResidents] = useState(initialResidents);
+  const [residents, setResidents] = useState<Resident[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedResident, setSelectedResident] = useState<Resident | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
   const [currentPhoto, setCurrentPhoto] = useState('');
+
+  // Load residents from API
+  useEffect(() => {
+    const loadResidents = async () => {
+      try {
+        console.log('AdminPanel: Loading residents from API...');
+        const data = await residentService.getAll();
+        console.log('AdminPanel: Loaded residents:', data);
+        setResidents(data);
+      } catch (error) {
+        console.error('AdminPanel: Error loading residents:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadResidents();
+  }, []);
 
   const filteredResidents = residents.filter(resident =>
     resident.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -37,21 +56,39 @@ const AdminPanel = () => {
     resident.edificio.includes(searchTerm)
   );
 
-  const activeResidents = residents.filter(r => r.estatus === 'activo').length;
-  const suspendedResidents = residents.filter(r => r.estatus === 'suspendido').length;
+  const activeResidents = residents.filter(r => r.estatus === 'ACTIVO').length;
+  const suspendedResidents = residents.filter(r => r.estatus === 'SUSPENDIDO').length;
 
-  const toggleResidentStatus = (residentId: string) => {
-    setResidents(prev => prev.map(resident => {
-      if (resident.id === residentId) {
-        const newStatus = resident.estatus === 'activo' ? 'suspendido' : 'activo';
-        toast({
-          title: "Estatus actualizado",
-          description: `${resident.nombre} ${resident.apellido} ahora está ${newStatus}`,
-        });
-        return { ...resident, estatus: newStatus };
-      }
-      return resident;
-    }));
+  const toggleResidentStatus = async (residentId: string) => {
+    const resident = residents.find(r => r.id === residentId);
+    if (!resident) return;
+    
+    const newStatus = resident.estatus === 'ACTIVO' ? 'SUSPENDIDO' : 'ACTIVO';
+    
+    try {
+      // Llamar al API para actualizar en la base de datos
+      await residentService.updateStatus(residentId, newStatus);
+      
+      // Actualizar el estado local si la API fue exitosa
+      setResidents(prev => prev.map(r => {
+        if (r.id === residentId) {
+          return { ...r, estatus: newStatus };
+        }
+        return r;
+      }));
+      
+      toast({
+        title: "Estatus actualizado",
+        description: `${resident.nombre} ${resident.apellido} ahora está ${newStatus}`,
+      });
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el estatus del residente",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleViewResident = (resident: Resident) => {
@@ -82,6 +119,12 @@ const AdminPanel = () => {
       <Header />
       
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+        {loading ? (
+          <div className="flex justify-center items-center h-64">
+            <p>Cargando residentes...</p>
+          </div>
+        ) : (
+          <>
         <div className="mb-6">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4">
             <Button 
@@ -202,8 +245,8 @@ const AdminPanel = () => {
                       </p>
                       <div className="flex items-center space-x-2 mt-1">
                         <Badge 
-                          variant={resident.estatus === 'activo' ? 'default' : 'destructive'}
-                          className={`text-xs ${resident.estatus === 'activo' 
+                          variant={resident.estatus === 'ACTIVO' ? 'default' : 'destructive'}
+                          className={`text-xs ${resident.estatus === 'ACTIVO' 
                             ? 'bg-success text-white' 
                             : 'bg-destructive text-white'
                           }`}
@@ -227,11 +270,11 @@ const AdminPanel = () => {
                     
                     <Button
                       size="sm"
-                      variant={resident.estatus === 'activo' ? 'destructive' : 'default'}
+                      variant={resident.estatus === 'ACTIVO' ? 'destructive' : 'default'}
                       onClick={() => toggleResidentStatus(resident.id)}
                       className="flex-1 sm:flex-none text-xs sm:text-sm"
                     >
-                      {resident.estatus === 'activo' ? (
+                      {resident.estatus === 'ACTIVO' ? (
                         <>
                           <UserX className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                           <span className="hidden sm:inline">Suspender</span>
@@ -265,6 +308,8 @@ const AdminPanel = () => {
             </div>
           </CardContent>
         </Card>
+        </>
+        )}
       </main>
 
       {/* Modals */}

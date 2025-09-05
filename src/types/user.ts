@@ -7,6 +7,10 @@ export interface Resident {
   telefono?: string;
   fechaNacimiento?: string;
   profilePhoto?: string;
+  documentoCurp?: string;
+  documentoComprobanteDomicilio?: string;
+  documentoActaNacimiento?: string;
+  documentoIne?: string;
   estatus: 'ACTIVO' | 'SUSPENDIDO' | 'INACTIVO';
   hasKey: boolean;
   registrationDate: string;
@@ -18,6 +22,17 @@ export interface Resident {
   pagosRealizados: number;
   informe?: string;
   createdById: string;
+  noPersonas?: number; // Número de personas en el apartamento
+  discapacidad?: boolean; // Si es una persona con discapacidad
+  
+  // Información INVI
+  inviInfo?: {
+    idInvi: string;
+    mensualidades: string;
+    deuda: number;
+    fechaContrato: string;
+    idCompanero?: string;
+  };
   
   // Relaciones incluidas
   building?: {

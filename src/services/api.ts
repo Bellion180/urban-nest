@@ -291,17 +291,35 @@ export const residentService = {
     return residents;
   },
 
-  // Crear residente con foto de perfil
+  // Crear residente con foto de perfil y documentos
   createWithPhoto: async (residentData: {
     nombre: string;
     apellido: string;
     email?: string;
     telefono?: string;
     fechaNacimiento?: string;
+    edad?: number;
+    noPersonas?: number;
+    discapacidad: boolean;
+    deudaActual: number;
+    pagosRealizados: number;
     apartmentNumber: string;
     buildingId: string;
     floorNumber: string;
     profilePhoto?: File;
+    documents?: {
+      curp?: File | null;
+      comprobanteDomicilio?: File | null;
+      actaNacimiento?: File | null;
+      ine?: File | null;
+    };
+    inviInfo?: {
+      idInvi?: string;
+      mensualidades?: number;
+      fechaContrato?: string;
+      deuda: number;
+      idCompanero?: string;
+    };
   }) => {
     const formData = new FormData();
     
@@ -310,7 +328,17 @@ export const residentService = {
       if (value !== undefined && value !== null) {
         if (key === 'profilePhoto' && value instanceof File) {
           formData.append('profilePhoto', value);
-        } else {
+        } else if (key === 'documents' && typeof value === 'object') {
+          // Agregar cada documento PDF por separado
+          Object.entries(value).forEach(([docType, docFile]) => {
+            if (docFile instanceof File) {
+              formData.append(`documents_${docType}`, docFile);
+            }
+          });
+        } else if (key === 'inviInfo' && typeof value === 'object') {
+          // Convertir inviInfo a JSON string
+          formData.append('inviInfo', JSON.stringify(value));
+        } else if (key !== 'documents') {
           formData.append(key, value.toString());
         }
       }
@@ -385,12 +413,38 @@ export const residentService = {
     return response.json();
   },
 
+  // Actualizar residente con documentos
+  updateWithDocuments: async (id: string, formData: FormData) => {
+    const token = getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/residents/${id}/with-documents`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        // No establecer Content-Type para FormData
+      },
+      body: formData,
+    });
+    return response.json();
+  },
+
   // Eliminar residente
   delete: async (id: string) => {
     const response = await authenticatedFetch(`/residents/${id}`, {
       method: 'DELETE',
     });
     return response.json();
+  },
+
+  // Cambiar estatus de residente
+  updateStatus: async (id: string, status: 'ACTIVO' | 'SUSPENDIDO' | 'INACTIVO') => {
+    console.log(`API: Cambiando estatus del residente ${id} a ${status}`);
+    const response = await authenticatedFetch(`/residents/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ estatus: status }),
+    });
+    const result = await response.json();
+    console.log(`API: Estatus actualizado:`, result);
+    return result;
   },
 };
 

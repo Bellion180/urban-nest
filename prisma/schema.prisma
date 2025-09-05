@@ -82,6 +82,13 @@ model Resident {
   noPersonas        Int?
   discapacidad      Boolean  @default(false)
   profilePhoto      String?
+  
+  // Documentos PDF
+  documentoCurp              String?
+  documentoComprobanteDomicilio String?
+  documentoActaNacimiento    String?
+  documentoIne               String?
+  
   estatus           Status   @default(ACTIVO)
   hasKey            Boolean  @default(false)
   registrationDate  DateTime @default(now())
@@ -107,8 +114,28 @@ model Resident {
 
   // Datos financieros detallados
   payments Payment[]
+  
+  // Información INVI
+  inviInfo InviInfo?
 
   @@map("residents")
+}
+
+model InviInfo {
+  id              String    @id @default(cuid())
+  idInvi          String?   // ID INVI
+  mensualidades   Int?      // Mensualidades
+  fechaContrato   DateTime? // Fecha de contrato
+  deuda           Float     @default(0.00) // Deuda
+  idCompanero     String?   // ID compañero
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  // Relación con residente
+  residentId      String    @unique
+  resident        Resident  @relation(fields: [residentId], references: [id], onDelete: Cascade)
+  
+  @@map("invi_info")
 }
 
 model Payment {
