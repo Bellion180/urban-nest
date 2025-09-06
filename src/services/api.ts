@@ -1,77 +1,55 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+// Archivo API principal que mantiene compatibilidad con la interfaz anterior
+// pero redirige a los nuevos servicios para la nueva estructura de BD
 
-// Función para obtener el token de autenticación
+const API_BASE_URL = 'http://localhost:3001/api';
+
+// ===== UTILIDADES =====
 const getAuthToken = () => {
   return localStorage.getItem('authToken');
 };
 
-// Función para hacer peticiones autenticadas
 const authenticatedFetch = async (url: string, options: RequestInit = {}) => {
   const token = getAuthToken();
   
-  const headers = {
-    'Content-Type': 'application/json',
-    ...(token && { Authorization: `Bearer ${token}` }),
-    ...options.headers,
+  const config = {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token && { Authorization: `Bearer ${token}` }),
+      ...options.headers,
+    },
   };
 
-  console.log(`API: Making request to ${API_BASE_URL}${url}`, {
-    method: options.method || 'GET',
-    headers: { ...headers, Authorization: token ? '[TOKEN PRESENT]' : 'No token' }
-  });
-
-  const response = await fetch(`${API_BASE_URL}${url}`, {
-    ...options,
-    headers,
-  });
-
-  console.log(`API: Response from ${url}:`, {
-    status: response.status,
-    statusText: response.statusText,
-    ok: response.ok
-  });
-
+  const response = await fetch(`${API_BASE_URL}${url}`, config);
+  
   if (!response.ok) {
-    let errorDetails;
-    try {
-      errorDetails = await response.json();
-      console.error(`API: Error details from ${url}:`, errorDetails);
-    } catch (parseError) {
-      errorDetails = { message: 'Error de red', status: response.status };
-      console.error(`API: Could not parse error from ${url}:`, parseError);
-    }
-    
-    throw new Error(errorDetails.message || errorDetails.error || `HTTP error! status: ${response.status}`);
+    throw new Error(`HTTP error! status: ${response.status}`);
   }
-
+  
   return response;
 };
 
 // ===== SERVICIOS DE AUTENTICACIÓN =====
 export const authService = {
-  // Iniciar sesión
   login: async (email: string, password: string) => {
     try {
       console.log('API: Enviando solicitud de login al servidor:', email);
       
-      // Validar los datos antes de enviar
       if (!email || !password) {
         throw new Error('Email y contraseña son requeridos');
       }
       
-      // Hacer la solicitud de login
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ email, password }),
-        credentials: 'include',  // Incluir cookies en la solicitud
+        credentials: 'include',
       });
       
       console.log('API: Respuesta recibida:', response.status, response.statusText);
       
-      // Manejar respuesta no exitosa
       if (!response.ok) {
         let errorMessage = `Error HTTP: ${response.status}`;
         try {
@@ -84,7 +62,6 @@ export const authService = {
         throw new Error(errorMessage);
       }
 
-      // Parsear respuesta exitosa
       let data;
       try {
         data = await response.json();
@@ -98,7 +75,6 @@ export const authService = {
         throw new Error('Error al procesar respuesta del servidor');
       }
       
-      // Guardar token en localStorage
       if (data.token) {
         localStorage.setItem('authToken', data.token);
         if (data.user) {
@@ -116,7 +92,6 @@ export const authService = {
     }
   },
 
-  // Registrar usuario
   register: async (userData: {
     email: string;
     password: string;
@@ -140,59 +115,28 @@ export const authService = {
     return response.json();
   },
 
-  // Verificar token
   verifyToken: async () => {
     const response = await authenticatedFetch('/auth/verify');
     return response.json();
   },
 
-  // Cerrar sesión
   logout: () => {
     localStorage.removeItem('authToken');
+    localStorage.removeItem('currentUser');
   },
 };
 
-// ===== SERVICIOS DE EDIFICIOS =====
-interface Floor {
-  id?: string;
-  name: string;
-  number: number;
-  apartments: string[];
-}
-
-interface BuildingUpdate {
-  name?: string;
-  description?: string;
-  image?: string;
-  floors?: Floor[];
-}
-
+// ===== SERVICIOS DE EDIFICIOS/TORRES =====
 export const buildingService = {
-  // Obtener todos los edificios
+  // Obtener todas las torres (mapeado como edificios para compatibilidad)
   getAll: async () => {
-    const response = await authenticatedFetch('/buildings');
+    const response = await authenticatedFetch('/torres');
     return response.json();
   },
 
-  // Obtener edificio por ID con pisos y apartamentos
-  getById: async (id: string) => {
-    const response = await authenticatedFetch(`/buildings/${id}`);
-    return response.json();
-  },
-
-  // Actualizar edificio
-  update: async (id: string, updateData: BuildingUpdate) => {
-    const response = await authenticatedFetch(`/buildings/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(updateData),
-    });
-    return response.json();
-  },
-
-  // Crear edificio
+  // Crear nueva torre (mapeado como edificio)
   create: async (buildingData: {
     name: string;
-    address?: string;
     description?: string;
     floors?: Array<{
       name: string;
@@ -200,321 +144,235 @@ export const buildingService = {
       apartments: string[];
     }>;
   }) => {
-    const response = await authenticatedFetch('/buildings', {
+    // Crear la torre
+    const torreResponse = await authenticatedFetch('/torres', {
       method: 'POST',
-      body: JSON.stringify(buildingData),
+      body: JSON.stringify({
+        letra: buildingData.name,
+        nivel: buildingData.description || 'Nivel 1'
+      }),
     });
-    return response.json();
+    
+    const torre = await torreResponse.json();
+    
+    // Si se proporcionaron pisos con apartamentos, crear los departamentos
+    if (buildingData.floors && buildingData.floors.length > 0) {
+      for (const floor of buildingData.floors) {
+        for (const apartmentNumber of floor.apartments) {
+          await authenticatedFetch(`/torres/${torre.torre.id_torre}/departamentos`, {
+            method: 'POST',
+            body: JSON.stringify({
+              no_departamento: apartmentNumber
+            }),
+          });
+        }
+      }
+    }
+    
+    return torre;
   },
 
-
-  // Eliminar edificio
+  // Eliminar torre
   delete: async (id: string) => {
-    const response = await authenticatedFetch(`/buildings/${id}`, {
+    const response = await authenticatedFetch(`/torres/${id}`, {
       method: 'DELETE',
     });
     return response.json();
   },
 
-  // Agregar piso
-  addFloor: async (buildingId: string, floorData: {
-    number: number;
-    name?: string;
-  }) => {
-    const response = await authenticatedFetch(`/buildings/${buildingId}/floors`, {
+  // Agregar apartamento (crear departamento)
+  addApartment: async (buildingId: string, apartmentData: { number: string }) => {
+    const response = await authenticatedFetch(`/torres/${buildingId}/departamentos`, {
       method: 'POST',
-      body: JSON.stringify(floorData),
+      body: JSON.stringify({
+        no_departamento: apartmentData.number
+      }),
     });
     return response.json();
   },
 
-  // Agregar apartamento
-  addApartment: async (floorId: string, apartmentData: {
-    number: string;
-    area?: number;
-    bedrooms?: number;
-    bathrooms?: number;
-  }) => {
-    const response = await authenticatedFetch(`/buildings/floors/${floorId}/apartments`, {
-      method: 'POST',
-      body: JSON.stringify(apartmentData),
-    });
-    return response.json();
-  },
-
-  // Crear edificio con imagen
+  // Métodos mantenidos para compatibilidad
+  addFloor: async () => ({ message: 'Floor concept not applicable in new structure' }),
   createWithImage: async (formData: FormData) => {
-    const token = getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/buildings`, {
-      method: 'POST',
-      body: formData,
-      headers: {
-        ...(token && { Authorization: `Bearer ${token}` })
-      }
-    });
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Error de red' }));
-      throw new Error(error.message || `HTTP error! status: ${response.status}`);
-    }
+    // Extraer datos del FormData
+    const name = formData.get('name') as string;
+    const description = formData.get('description') as string;
+    return buildingService.create({ name, description });
+  },
+  uploadFloorImage: async () => ({ message: 'Floor images not supported in new structure' }),
+  getFloorImages: async () => ([]),
+  getById: async (id: string) => {
+    const response = await authenticatedFetch(`/torres/${id}/departamentos`);
     return response.json();
   },
-
-  // Subir imagen de piso
-  uploadFloorImage: async (buildingId: string, pisoNumber: number, imageFile: File) => {
-    const formData = new FormData();
-    formData.append('image', imageFile);
-    
-    const token = getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/buildings/${buildingId}/pisos/${pisoNumber}/image`, {
-      method: 'POST',
-      body: formData,
-      headers: {
-        ...(token && { Authorization: `Bearer ${token}` })
-      }
-    });
-    
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Error de red' }));
-      throw new Error(error.message || `HTTP error! status: ${response.status}`);
-    }
-    return response.json();
-  },
-
-  // Obtener imágenes de pisos de un edificio
-  getFloorImages: async (buildingId: string) => {
-    const response = await authenticatedFetch(`/buildings/${buildingId}/pisos/imagenes`);
-    return response.json();
-  },
+  update: async (id: string, updateData: any) => {
+    // No hay endpoint de actualización directo, devolver estructura mínima
+    return { message: 'Update not implemented in new structure' };
+  }
 };
 
-// ===== SERVICIOS DE RESIDENTES =====
+// ===== SERVICIOS DE RESIDENTES/COMPAÑEROS =====
 export const residentService = {
-  // Obtener todos los residentes
+  // Obtener todos los compañeros (mapeado como residentes)
   getAll: async () => {
-    const response = await authenticatedFetch('/residents');
+    const response = await authenticatedFetch('/companeros');
     return response.json();
   },
 
-  // Obtener residente por ID
-  getById: async (id: string) => {
-    const response = await authenticatedFetch(`/residents/${id}`);
-    return response.json();
-  },
-
-  // Obtener residentes por edificio y piso
-  getByFloor: async (buildingId: string, floorNumber: string) => {
-    console.log(`API: Obteniendo residentes del edificio ${buildingId}, piso ${floorNumber}`);
-    const response = await authenticatedFetch(`/residents/by-floor/${buildingId}/${floorNumber}`);
-    const residents = await response.json();
-    console.log(`API: Residentes obtenidos:`, residents);
-    return residents;
-  },
-
-  // Crear residente con foto de perfil y documentos
-  createWithPhoto: async (residentData: {
-    nombre: string;
-    apellido: string;
-    email?: string;
-    telefono?: string;
-    fechaNacimiento?: string;
-    edad?: number;
-    noPersonas?: number;
-    discapacidad: boolean;
-    deudaActual: number;
-    pagosRealizados: number;
-    apartmentNumber: string;
-    buildingId: string;
-    floorNumber: string;
-    profilePhoto?: File;
-    documents?: {
-      curp?: File | null;
-      comprobanteDomicilio?: File | null;
-      actaNacimiento?: File | null;
-      ine?: File | null;
+  // Crear nuevo compañero
+  create: async (residentData: any) => {
+    // Mapear campos de la interfaz anterior a la nueva
+    const mappedData = {
+      nombre: residentData.nombre,
+      apellidos: residentData.apellido,
+      fecha_nacimiento: residentData.fechaNacimiento,
+      no_personas: residentData.noPersonas,
+      no_des_per: residentData.noPersonasDiscapacitadas || (residentData.discapacidad ? 1 : 0),
+      recibo_apoyo: residentData.recibo_apoyo || 'NO',
+      no_apoyo: residentData.no_apoyo,
+      id_departamento: residentData.apartmentId,
     };
-    inviInfo?: {
-      idInvi?: string;
-      mensualidades?: number;
-      fechaContrato?: string;
-      deuda: number;
-      idCompanero?: string;
-    };
-  }) => {
-    const formData = new FormData();
     
-    // Agregar todos los campos al FormData
-    Object.entries(residentData).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        if (key === 'profilePhoto' && value instanceof File) {
-          formData.append('profilePhoto', value);
-        } else if (key === 'documents' && typeof value === 'object') {
-          // Agregar cada documento PDF por separado
-          Object.entries(value).forEach(([docType, docFile]) => {
-            if (docFile instanceof File) {
-              formData.append(`documents_${docType}`, docFile);
-            }
-          });
-        } else if (key === 'inviInfo' && typeof value === 'object') {
-          // Convertir inviInfo a JSON string
-          formData.append('inviInfo', JSON.stringify(value));
-        } else if (key !== 'documents') {
-          formData.append(key, value.toString());
+    const response = await authenticatedFetch('/companeros', {
+      method: 'POST',
+      body: JSON.stringify(mappedData),
+    });
+    return response.json();
+  },
+
+  // Actualizar compañero
+  update: async (id: string, residentData: any) => {
+    const mappedData = {
+      nombre: residentData.nombre,
+      apellidos: residentData.apellido,
+      fecha_nacimiento: residentData.fechaNacimiento,
+      no_personas: residentData.noPersonas,
+      no_des_per: residentData.noPersonasDiscapacitadas,
+      recibo_apoyo: residentData.recibo_apoyo,
+      no_apoyo: residentData.no_apoyo,
+      id_departamento: residentData.apartmentId,
+    };
+    
+    const response = await authenticatedFetch(`/companeros/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(mappedData),
+    });
+    return response.json();
+  },
+
+  // Actualizar con documentos (los documentos no existen en nueva estructura)
+  updateWithDocuments: async (id: string, formData: FormData) => {
+    console.log(`API: Making multipart request to /companeros/${id}`);
+    
+    const companeroData: any = {};
+    
+    formData.forEach((value, key) => {
+      if (!key.startsWith('documents_')) {
+        if (key === 'apellido') {
+          companeroData.apellidos = value;
+        } else if (key === 'fechaNacimiento') {
+          companeroData.fecha_nacimiento = value;
+        } else if (key === 'noPersonas') {
+          companeroData.no_personas = parseInt(value as string);
+        } else if (key === 'noPersonasDiscapacitadas') {
+          companeroData.no_des_per = parseInt(value as string);
+        } else if (key === 'nombre' || key === 'recibo_apoyo' || key === 'no_apoyo' || key === 'id_departamento') {
+          companeroData[key] = value;
         }
       }
     });
 
-    const token = getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/residents`, {
-      method: 'POST',
-      headers: {
-        ...(token && { Authorization: `Bearer ${token}` }),
-        // No establecer Content-Type para FormData - el navegador lo hace automáticamente
-      },
-      body: formData,
+    const response = await authenticatedFetch(`/companeros/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(companeroData),
+    });
+
+    console.log(`API: Response from /companeros/${id}:`, {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      contentType: response.headers.get('content-type')
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Error de red' }));
-      throw new Error(error.error || `HTTP error! status: ${response.status}`);
+      let errorDetails;
+      const contentType = response.headers.get('content-type');
+      
+      try {
+        if (contentType && contentType.includes('application/json')) {
+          errorDetails = await response.json();
+        } else {
+          const errorText = await response.text();
+          errorDetails = { message: `Error ${response.status}: ${errorText}` };
+        }
+        console.error(`API: Error details from /companeros/${id}:`, errorDetails);
+      } catch (parseError) {
+        errorDetails = { message: `Error de red: ${response.status} ${response.statusText}` };
+        console.error(`API: Could not parse error from /companeros/${id}:`, parseError);
+      }
+      
+      throw new Error(errorDetails.message || errorDetails.error || `HTTP error! status: ${response.status}`);
     }
 
     return response.json();
   },
 
-  // Crear residente
-  create: async (residentData: {
-    nombre: string;
-    apellido: string;
-    email?: string;
-    telefono?: string;
-    fechaNacimiento?: string;
-    profesion?: string;
-    estadoCivil?: string;
-    numeroEmergencia?: string;
-    apartmentNumber: string;
-    buildingId: string;
-    floorNumber: number;
-    vehiculos?: string;
-    mascotas?: string;
-    observaciones?: string;
-    cuotaMantenimiento?: number;
-    photo?: File;
-  }) => {
-    const formData = new FormData();
-    
-    // Agregar todos los campos al FormData
-    Object.entries(residentData).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        if (key === 'photo' && value instanceof File) {
-          formData.append('photo', value);
-        } else {
-          formData.append(key, value.toString());
-        }
-      }
-    });
-
-    const response = await authenticatedFetch('/residents', {
-      method: 'POST',
-      headers: {
-        // No establecer Content-Type para FormData
-      },
-      body: formData,
-    });
-    return response.json();
-  },
-
-  // Actualizar residente
-  update: async (id: string, residentData: any) => {
-    const response = await authenticatedFetch(`/residents/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(residentData),
-    });
-    return response.json();
-  },
-
-  // Actualizar residente con documentos
-  updateWithDocuments: async (id: string, formData: FormData) => {
-    const token = getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/residents/${id}/documents`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        // No establecer Content-Type para FormData
-      },
-      body: formData,
-    });
-    return response.json();
-  },
-
-  // Eliminar residente
+  // Eliminar compañero
   delete: async (id: string) => {
-    const response = await authenticatedFetch(`/residents/${id}`, {
+    const response = await authenticatedFetch(`/companeros/${id}`, {
       method: 'DELETE',
     });
     return response.json();
   },
 
-  // Cambiar estatus de residente
-  updateStatus: async (id: string, status: 'ACTIVO' | 'SUSPENDIDO' | 'INACTIVO') => {
-    console.log(`API: Cambiando estatus del residente ${id} a ${status}`);
-    const response = await authenticatedFetch(`/residents/${id}/status`, {
-      method: 'PATCH',
+  // Cambiar estatus
+  updateStatus: async (id: string, status: string) => {
+    const response = await authenticatedFetch(`/companeros/${id}`, {
+      method: 'PUT',
       body: JSON.stringify({ estatus: status }),
     });
-    const result = await response.json();
-    console.log(`API: Estatus actualizado:`, result);
-    return result;
-  },
-
-  // Obtener residentes sin edificio asignado
-  getUnassigned: async () => {
-    const response = await authenticatedFetch('/residents/unassigned');
     return response.json();
   },
 
-  // Asignar edificio y apartamento a un residente
-  assignBuilding: async (residentId: string, buildingId: string, apartmentId: string) => {
-    const response = await authenticatedFetch(`/residents/${residentId}/assign-building`, {
-      method: 'PATCH',
-      body: JSON.stringify({ buildingId, apartmentId }),
-    });
-    return response.json();
-  },
-};
-
-// ===== SERVICIOS DE PAGOS =====
-export const paymentService = {
-  // Obtener pagos de un residente
-  getByResident: async (residentId: string) => {
-    const response = await authenticatedFetch(`/payments/resident/${residentId}`);
-    return response.json();
-  },
-
-  // Crear pago
-  create: async (paymentData: {
-    residentId: string;
-    amount: number;
-    type: 'MANTENIMIENTO' | 'MULTA' | 'OTRO';
-    description?: string;
-    date?: string;
-  }) => {
-    const response = await authenticatedFetch('/payments', {
+  // Realizar pago
+  makePayment: async (id: string, paymentData: { amount: number }) => {
+    const response = await authenticatedFetch(`/companeros/${id}/payment`, {
       method: 'POST',
       body: JSON.stringify(paymentData),
     });
     return response.json();
   },
 
-  // Obtener estadísticas de pagos
-  getStats: async () => {
-    const response = await authenticatedFetch('/payments/stats');
-    return response.json();
+  // Métodos mantenidos para compatibilidad
+  getById: async (id: string) => {
+    // No hay endpoint específico, pero se puede obtener de la lista
+    const residents = await residentService.getAll();
+    return residents.find((r: any) => r.id === id);
+  },
+
+  createWithPhoto: async (formData: FormData) => {
+    // Extraer datos y crear sin foto
+    const residentData: any = {};
+    formData.forEach((value, key) => {
+      if (key !== 'photo') {
+        residentData[key] = value;
+      }
+    });
+    return residentService.create(residentData);
   },
 };
 
-export default {
-  authService,
-  buildingService,
-  residentService,
-  paymentService,
+// ===== SERVICIOS DE PAGOS =====
+export const paymentService = {
+  getByResident: async () => [],
+  create: async (paymentData: {
+    residentId: string;
+    amount: number;
+    type: string;
+    description?: string;
+  }) => {
+    return residentService.makePayment(paymentData.residentId, {
+      amount: paymentData.amount
+    });
+  },
 };

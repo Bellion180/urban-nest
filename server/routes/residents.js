@@ -968,6 +968,16 @@ router.put('/:id/documents', authMiddleware, upload.fields([
 
     console.log('✅ Residente encontrado para subida de documentos');
 
+    // Verificar que el residente tenga edificio y apartamento asignado
+    if (!currentResident.building || !currentResident.apartment) {
+      console.log('❌ El residente no tiene edificio o apartamento asignado');
+      console.log('Building:', currentResident.building);
+      console.log('Apartment:', currentResident.apartment);
+      return res.status(400).json({ 
+        error: 'El residente debe tener un edificio y apartamento asignado para subir documentos' 
+      });
+    }
+
     // Procesar archivos de documentos si se enviaron
     if (req.files) {
       const fileFieldMap = {
@@ -1146,8 +1156,16 @@ router.put('/:id/documents', authMiddleware, upload.fields([
       resident
     });
   } catch (error) {
-    console.error('Error al actualizar documentos:', error);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    console.error('❌ ERROR COMPLETO al actualizar documentos:', error);
+    console.error('❌ ERROR MESSAGE:', error.message);
+    console.error('❌ ERROR STACK:', error.stack);
+    if (error.code) console.error('❌ ERROR CODE:', error.code);
+    if (error.meta) console.error('❌ ERROR META:', error.meta);
+    res.status(500).json({ 
+      error: 'Error interno del servidor',
+      details: error.message,
+      code: error.code || 'UNKNOWN'
+    });
   }
 });
 
@@ -1288,6 +1306,123 @@ router.patch('/:id/assign-building', authMiddleware, async (req, res) => {
   } catch (error) {
     console.error('Error al asignar edificio:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// Procesar pago de residente
+router.post('/:id/payment', authMiddleware, async (req, res) => {
+  console.log('💰 Procesando pago para residente...');
+  
+  try {
+    const { id } = req.params;
+    const { amount } = req.body;
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ error: 'El monto del pago debe ser mayor a 0' });
+    }
+
+    const paymentAmount = parseFloat(amount);
+
+    // Obtener el residente actual
+    const resident = await prisma.resident.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        nombre: true,
+        apellido: true,
+        deudaActual: true,
+        pagosRealizados: true,
+        inviInfo: true
+      }
+    });
+
+    if (!resident) {
+      return res.status(404).json({ error: 'Residente no encontrado' });
+    }
+
+    // Calcular nuevos valores
+    const currentDebt = resident.deudaActual || 0;
+    const currentPaid = resident.pagosRealizados || 0;
+
+    // La nueva deuda será la deuda actual menos el pago
+    const newDebt = Math.max(0, currentDebt - paymentAmount);
+    
+    // Los pagos realizados se incrementan con el pago
+    const newPaidAmount = currentPaid + paymentAmount;
+
+    // Actualizar datos INVI si existen
+    let inviUpdateData = {};
+    if (resident.inviInfo) {
+      const currentInviDebt = resident.inviInfo.deuda || 0;
+      const newInviDebt = Math.max(0, currentInviDebt - paymentAmount);
+      
+      // Si hay mensualidades, se puede decrementar cuando se cubra una cantidad específica
+      let newMensualidades = resident.inviInfo.mensualidades || 0;
+      
+      inviUpdateData = {
+        inviInfo: {
+          update: {
+            deuda: newInviDebt,
+            mensualidades: newMensualidades
+          }
+        }
+      };
+    }
+
+    // Actualizar residente
+    const updatedResident = await prisma.resident.update({
+      where: { id },
+      data: {
+        deudaActual: newDebt,
+        pagosRealizados: newPaidAmount,
+        ...inviUpdateData
+      },
+      include: {
+        building: true,
+        inviInfo: true,
+        payments: {
+          orderBy: { createdAt: 'desc' },
+          take: 5
+        }
+      }
+    });
+
+    // Crear registro de pago
+    await prisma.payment.create({
+      data: {
+        amount: paymentAmount,
+        type: 'CUOTA_MANTENIMIENTO', // Tipo por defecto
+        residentId: id,
+        description: `Pago realizado por ${resident.nombre} ${resident.apellido}`
+      }
+    });
+
+    console.log(`💰 Pago procesado exitosamente para ${resident.nombre} ${resident.apellido}: $${paymentAmount}`);
+
+    // Respuesta con el residente actualizado
+    res.json({
+      message: 'Pago procesado exitosamente',
+      resident: {
+        id: updatedResident.id,
+        nombre: updatedResident.nombre,
+        apellido: updatedResident.apellido,
+        deudaActual: updatedResident.deudaActual,
+        pagosRealizados: updatedResident.pagosRealizados,
+        building: updatedResident.building,
+        inviInfo: updatedResident.inviInfo,
+        recentPayments: updatedResident.payments
+      },
+      payment: {
+        amount: paymentAmount,
+        previousDebt: currentDebt,
+        newDebt: newDebt,
+        totalPaid: newPaidAmount
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error procesando pago:', error);
+    res.status(500).json({ error: 'Error interno del servidor al procesar el pago' });
   }
 });
 

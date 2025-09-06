@@ -122,7 +122,10 @@ const ResidentDetailModal: React.FC<ResidentDetailModalProps> = ({
                       <div className="flex items-center space-x-2">
                         <MapPin className="h-4 w-4 text-muted-foreground" />
                         <span className="text-sm">
-                          {resident.building?.name} - {resident.apartment?.floor?.name} - Apt. {resident.apartment?.number}
+                          {resident.building?.name ? 
+                            `${resident.building.name} - ${resident.apartment?.floor?.name} - Apt. ${resident.apartment?.number}` :
+                            'Sin ubicación asignada'
+                          }
                         </span>
                       </div>
                       
@@ -143,7 +146,7 @@ const ResidentDetailModal: React.FC<ResidentDetailModalProps> = ({
                       {resident.fechaNacimiento && (
                         <div className="flex items-center space-x-2">
                           <Calendar className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm">Nacimiento: {new Date(resident.fechaNacimiento).toLocaleDateString()}</span>
+                          <span className="text-sm">Fecha de Nacimiento: {new Date(resident.fechaNacimiento).toLocaleDateString()}</span>
                         </div>
                       )}
                       
@@ -154,92 +157,91 @@ const ResidentDetailModal: React.FC<ResidentDetailModalProps> = ({
                         </div>
                       )}
                       
-                      <div className="flex items-center space-x-2">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">Registro: {new Date(resident.registrationDate).toLocaleDateString()}</span>
-                      </div>
+                      {resident.noPersonas && (
+                        <div className="flex items-center space-x-2">
+                          <Users className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">Número de Personas: {resident.noPersonas}</span>
+                        </div>
+                      )}
                       
                       <div className="flex items-center space-x-2">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          resident.hasKey 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {resident.hasKey ? '🔑 Tiene llave' : '🚫 Sin llave'}
+                        <Heart className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm">
+                          Personas con discapacidad: {resident.discapacidad ? 'Sí' : 'No'}
                         </span>
+                      </div>
+                      
+                      {resident.discapacidad && resident.noPersonasDiscapacitadas > 0 && (
+                        <div className="flex items-center space-x-2 ml-6">
+                          <span className="text-sm text-muted-foreground">
+                            Número de personas discapacitadas: {resident.noPersonasDiscapacitadas}
+                          </span>
+                        </div>
+                      )}
+                      
+                      <div className="flex items-center space-x-2">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm">Fecha de Registro: {new Date(resident.registrationDate).toLocaleDateString()}</span>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
                 
-                {/* Información Adicional */}
+                {/* Información de Vivienda y Estado */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-lg flex items-center space-x-2">
-                      <FileText className="h-5 w-5" />
-                      <span>Información Adicional</span>
+                      <Car className="h-5 w-5" />
+                      <span>Estado y Vivienda</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Deuda Actual</span>
-                      <span className={`font-medium ${resident.deudaActual > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                        ${resident.deudaActual.toFixed(2)}
-                      </span>
+                      <span className="text-sm text-muted-foreground">Estado del Residente</span>
+                      <Badge 
+                        variant={resident.estatus === 'ACTIVO' ? 'default' : 'destructive'}
+                        className={resident.estatus === 'ACTIVO' 
+                          ? 'bg-green-500 text-white' 
+                          : 'bg-red-500 text-white'
+                        }
+                      >
+                        {resident.estatus}
+                      </Badge>
                     </div>
                     
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Pagos Realizados</span>
-                      <span className="font-medium text-green-600">
-                        ${resident.pagosRealizados.toFixed(2)}
+                      <span className="text-sm text-muted-foreground">Ubicación</span>
+                      <span className="text-sm font-medium">
+                        {resident.building?.name ? 
+                          `${resident.building.name}` :
+                          'Sin asignar'
+                        }
                       </span>
                     </div>
                     
+                    {resident.apartment && (
+                      <>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-muted-foreground">Piso</span>
+                          <span className="text-sm font-medium">{resident.apartment.floor?.name}</span>
+                        </div>
+                        
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-muted-foreground">Apartamento</span>
+                          <span className="text-sm font-medium">{resident.apartment.number}</span>
+                        </div>
+                      </>
+                    )}
+                    
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Estado de Llaves</span>
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        resident.hasKey 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {resident.hasKey ? 'Entregada' : 'Pendiente'}
+                      <span className="text-sm text-muted-foreground">Fecha de Registro</span>
+                      <span className="text-sm font-medium">
+                        {new Date(resident.registrationDate).toLocaleDateString()}
                       </span>
                     </div>
                   </CardContent>
                 </Card>
               </div>
-              
-              {/* Historial de Pagos */}
-              {resident.payments && resident.payments.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg flex items-center space-x-2">
-                      <DollarSign className="h-5 w-5" />
-                      <span>Últimos Pagos</span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {resident.payments.map((payment) => (
-                        <div key={payment.id} className="flex justify-between items-center p-3 border rounded-lg">
-                          <div>
-                            <div className="font-medium">{payment.type.replace('_', ' ')}</div>
-                            {payment.description && (
-                              <div className="text-sm text-muted-foreground">{payment.description}</div>
-                            )}
-                            <div className="text-xs text-muted-foreground">
-                              {new Date(payment.date).toLocaleDateString()}
-                            </div>
-                          </div>
-                          <div className="text-lg font-bold text-green-600">
-                            ${payment.amount.toFixed(2)}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
               
               {/* Observaciones */}
               {resident.informe && (

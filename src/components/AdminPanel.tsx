@@ -12,6 +12,7 @@ import EditResidentModal from './EditResidentModal';
 import SimplePhotoModal from './SimplePhotoModal';
 import BuildingManagement from './BuildingManagement';
 import UnassignedResidentsModal from './UnassignedResidentsModal';
+import PaymentModal from './PaymentModal';
 import { 
   ArrowLeft, 
   Search, 
@@ -24,7 +25,8 @@ import {
   Plus,
   Building,
   Loader2,
-  Trash2
+  Trash2,
+  DollarSign
 } from 'lucide-react';
 import Header from './Header';
 import { toast } from '@/hooks/use-toast';
@@ -44,6 +46,7 @@ const AdminPanel = () => {
   const [currentPhoto, setCurrentPhoto] = useState('');
   const [showBuildingModal, setShowBuildingModal] = useState(false);
   const [showUnassignedModal, setShowUnassignedModal] = useState(false);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
   const filteredResidents = residents.filter(resident =>
     resident.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -167,6 +170,18 @@ const AdminPanel = () => {
     if (selectedResident && selectedResident.id === residentId) {
       setSelectedResident({ ...selectedResident, profilePhoto: newPhoto });
     }
+  };
+
+  const handlePayment = (resident: Resident) => {
+    setSelectedResident(resident);
+    setIsPaymentModalOpen(true);
+  };
+
+  const handlePaymentComplete = () => {
+    setIsPaymentModalOpen(false);
+    setSelectedResident(null);
+    // Recargar los residentes para obtener la información actualizada
+    loadResidents();
   };
 
   return (
@@ -369,6 +384,18 @@ const AdminPanel = () => {
                     {isAdmin && (
                       <Button
                         size="sm"
+                        variant="outline"
+                        onClick={() => handlePayment(resident)}
+                        className="flex-1 sm:flex-none text-xs sm:text-sm border-green-200 text-green-600 hover:bg-green-50 hover:text-green-700"
+                      >
+                        <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                        <span className="hidden sm:inline">Realizar Pago</span>
+                        <span className="sm:hidden">Pago</span>
+                      </Button>
+                    )}
+                    {isAdmin && (
+                      <Button
+                        size="sm"
                         variant={resident.estatus === 'ACTIVO' ? 'destructive' : 'default'}
                         onClick={() => toggleResidentStatus(resident.id)}
                         className="flex-1 sm:flex-none text-xs sm:text-sm"
@@ -450,6 +477,15 @@ const AdminPanel = () => {
           isOpen={isEditModalOpen}
           onClose={() => setIsEditModalOpen(false)}
           onUpdate={handleUpdateResident}
+        />
+      )}
+
+      {selectedResident && (
+        <PaymentModal
+          resident={selectedResident}
+          isOpen={isPaymentModalOpen}
+          onClose={() => setIsPaymentModalOpen(false)}
+          onPaymentSuccess={handlePaymentComplete}
         />
       )}
       

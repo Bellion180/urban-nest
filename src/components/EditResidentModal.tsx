@@ -25,7 +25,8 @@ import {
   Home,
   Users as UsersIcon,
   Upload,
-  File
+  File,
+  AlertTriangle
 } from 'lucide-react';
 
 interface EditResidentModalProps {
@@ -497,6 +498,17 @@ const EditResidentModal = ({ resident, isOpen, onClose, onUpdate }: EditResident
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {(!resident.buildingId || !resident.apartmentId) && (
+                  <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4 text-orange-600" />
+                      <span className="text-sm font-medium text-orange-800">Ubicación incompleta</span>
+                    </div>
+                    <p className="text-xs text-orange-700 mt-1">
+                      Este residente necesita tener asignado un edificio y apartamento para poder subir documentos.
+                    </p>
+                  </div>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <Label htmlFor="building">Edificio</Label>
@@ -726,6 +738,22 @@ const EditResidentModal = ({ resident, isOpen, onClose, onUpdate }: EditResident
                 </CardTitle>
               </CardHeader>
               <CardContent>
+                {(!resident.buildingId || !resident.apartmentId) && (
+                  <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <AlertTriangle className="h-5 w-5 text-yellow-600" />
+                      <h4 className="font-medium text-yellow-800">Ubicación requerida</h4>
+                    </div>
+                    <p className="text-sm text-yellow-700 mb-3">
+                      Para subir documentos, el residente debe tener asignado un edificio y apartamento. 
+                      Por favor, ve a la pestaña "Personal" y asigna la ubicación correspondiente.
+                    </p>
+                    <p className="text-xs text-yellow-600">
+                      Edificio actual: {resident.building?.name || 'No asignado'} | 
+                      Apartamento actual: {resident.apartment ? `${resident.apartment.number} (Piso ${resident.apartment.floor?.number})` : 'No asignado'}
+                    </p>
+                  </div>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* CURP */}
                   <div className="border rounded-lg p-4">

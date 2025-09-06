@@ -7,9 +7,11 @@ import { prisma } from '../src/lib/prisma.js';
 
 // Importar rutas
 import authRoutes from './routes/auth.js';
-import buildingRoutes from './routes/buildings.js';
-import residentRoutes from './routes/residents.js';
+// import buildingRoutes from './routes/buildings.js';  // Reemplazado por torresRoutes
+// import residentRoutes from './routes/residents.js';  // Reemplazado por companerosRoutes
 import paymentRoutes from './routes/payments.js';
+import { companerosRoutes } from './routes/companeros.js';
+import { torresRoutes } from './routes/torres.js';
 
 // Importar middlewares
 import authMiddleware, { adminMiddleware } from './middleware/auth.js';
@@ -82,10 +84,20 @@ app.options('/api/auth/register', cors(corsOptions));
 app.options('/api/auth/verify', cors(corsOptions));
 app.use('/api/auth', authRoutes); // No requiere autenticación previa
 
-// Rutas protegidas
-app.use('/api/buildings', authMiddleware, buildingRoutes);
-app.use('/api/residents', authMiddleware, residentRoutes);
+// Rutas protegidas - Nuevas rutas principales
+app.use('/api/companeros', authMiddleware, companerosRoutes);
+app.use('/api/torres', authMiddleware, torresRoutes);
+
+// Rutas de compatibilidad - redirigir a las nuevas rutas
+app.use('/api/buildings', authMiddleware, torresRoutes); 
+app.use('/api/residents', authMiddleware, (req, res, next) => {
+  console.log('🔀 Redirección: /api/residents -> /api/companeros', req.method, req.path);
+  next();
+}, companerosRoutes); 
 app.use('/api/payments', authMiddleware, paymentRoutes);
+
+// Alias para compatibilidad - mapear las rutas anteriores a las nuevas
+app.use('/api/residents-legacy', authMiddleware, companerosRoutes);
 
 // Manejo de errores global
 app.use((err, req, res, next) => {

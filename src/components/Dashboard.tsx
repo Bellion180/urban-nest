@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Building, Users, ArrowRight, Loader2 } from 'lucide-react';
 import Header from './Header';
-import api from '@/services/api';
+import { buildingService } from '@/services/api';
 import {
   Carousel,
   CarouselContent,
@@ -45,7 +45,7 @@ const Dashboard = () => {
       setError(null);
       console.log('Dashboard: Obteniendo edificios de la API...');
       
-      const buildingsData = await api.buildingService.getAll();
+      const buildingsData = await buildingService.getAll();
       console.log('Dashboard: Edificios recibidos:', buildingsData);
       
       setBuildings(buildingsData);
