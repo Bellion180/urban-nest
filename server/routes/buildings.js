@@ -568,48 +568,116 @@ router.delete('/:id', authMiddleware, async (req, res) => {
 
     // Verificar que es admin
     if (req.user.role !== 'ADMIN') {
+      console.log('❌ Usuario no autorizado');
       return res.status(403).json({ error: 'Acceso denegado' });
     }
 
-    // Verificar si hay residentes en el edificio
-    const residentsCount = await prisma.resident.count({
-      where: { buildingId: id }
+    console.log('✅ Usuario autorizado como admin');
+
+    // Verificar si el edificio existe
+    const building = await prisma.building.findUnique({
+      where: { id },
+      include: {
+        floors: {
+          include: {
+            apartments: true
+          }
+        }
+      }
     });
 
-    if (residentsCount > 0) {
-      return res.status(400).json({ 
-        error: 'No se puede eliminar el edificio porque tiene residentes registrados' 
+    if (!building) {
+      console.log('❌ Edificio no encontrado');
+      return res.status(404).json({ error: 'Edificio no encontrado' });
+    }
+
+    console.log(`📊 Edificio encontrado: ${building.name}`);
+    console.log(`📊 Pisos: ${building.floors.length}`);
+    console.log(`📊 Apartamentos totales: ${building.floors.reduce((total, floor) => total + floor.apartments.length, 0)}`);
+
+    // Verificar si hay residentes en el edificio y desasignarlos
+    const residentsInBuilding = await prisma.resident.findMany({
+      where: { buildingId: id },
+      select: { id: true, nombre: true, apellido: true }
+    });
+
+    console.log(`👥 Residentes encontrados en el edificio: ${residentsInBuilding.length}`);
+
+    let desassignedResidents = [];
+    
+    if (residentsInBuilding.length > 0) {
+      console.log(`🔄 Desasignando ${residentsInBuilding.length} residentes...`);
+      
+      // Desasignar residentes del edificio (poner campos como null)
+      const updateResult = await prisma.resident.updateMany({
+        where: { buildingId: id },
+        data: {
+          buildingId: null,
+          apartmentId: null
+        }
       });
+      
+      desassignedResidents = residentsInBuilding.map(r => `${r.nombre} ${r.apellido}`);
+      console.log(`✅ ${updateResult.count} residentes desasignados del edificio`);
+    } else {
+      console.log('ℹ️ No hay residentes para desasignar');
     }
 
     // Eliminar imágenes físicas del edificio antes de eliminar de la base de datos
     const buildingDir = path.join('public', 'edificios', id);
+    console.log(`🗂️ Verificando carpeta de imágenes: ${buildingDir}`);
+    
     if (fs.existsSync(buildingDir)) {
-      console.log(`Eliminando carpeta de imágenes: ${buildingDir}`);
+      console.log(`🗑️ Eliminando carpeta de imágenes: ${buildingDir}`);
       try {
         // Eliminar toda la carpeta del edificio recursivamente
         fs.rmSync(buildingDir, { recursive: true, force: true });
-        console.log(`Carpeta eliminada exitosamente: ${buildingDir}`);
+        console.log(`✅ Carpeta eliminada exitosamente: ${buildingDir}`);
       } catch (fileError) {
-        console.error('Error al eliminar carpeta de imágenes:', fileError);
+        console.error('❌ Error al eliminar carpeta de imágenes:', fileError);
         // Continúa con la eliminación de la base de datos aunque falle la eliminación de archivos
       }
     } else {
-      console.log(`No se encontró carpeta de imágenes para el edificio: ${buildingDir}`);
+      console.log(`ℹ️ No se encontró carpeta de imágenes para el edificio: ${buildingDir}`);
     }
 
-    // Eliminar edificio de la base de datos
+    // Eliminar edificio de la base de datos (Prisma eliminará automáticamente pisos y apartamentos por la cascada)
+    console.log(`🗑️ Eliminando edificio de la base de datos...`);
     await prisma.building.delete({
       where: { id }
     });
 
-    console.log(`Edificio ${id} eliminado exitosamente`);
+    console.log(`✅ Edificio ${id} eliminado exitosamente`);
+    
+    const responseMessage = desassignedResidents.length > 0 
+      ? `Edificio eliminado exitosamente. ${desassignedResidents.length} residentes fueron desasignados: ${desassignedResidents.join(', ')}`
+      : 'Edificio eliminado exitosamente';
+    
     res.json({
-      message: 'Edificio e imágenes eliminados exitosamente'
+      message: responseMessage,
+      desassignedResidents: desassignedResidents
     });
   } catch (error) {
-    console.error('Error al eliminar edificio:', error);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    console.error('❌ Error al eliminar edificio:', error);
+    
+    // Analizar el tipo de error
+    if (error.code === 'P2003') {
+      console.error('❌ Error de restricción de clave foránea');
+      return res.status(400).json({ 
+        error: 'No se puede eliminar el edificio debido a restricciones de base de datos',
+        details: 'Existen relaciones que impiden la eliminación'
+      });
+    }
+    
+    if (error.code === 'P2025') {
+      console.error('❌ Registro no encontrado');
+      return res.status(404).json({ 
+        error: 'Edificio no encontrado' 
+      });
+    }
+    
+    console.error('❌ Error general:', error.message);
+    res.status(500).json({ error: 'Error interno del servidor', details: error.message });
   }
 });
 

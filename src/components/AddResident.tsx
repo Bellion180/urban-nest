@@ -61,6 +61,7 @@ const AddResident = () => {
     fechaNacimiento: '',
     edad: '',
     noPersonas: '',
+    noPersonasDiscapacitadas: '',
     discapacidad: false,
     
     // Información financiera
@@ -97,10 +98,19 @@ const AddResident = () => {
   }, []);
 
   const handleInputChange = (field: string, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setFormData(prev => {
+      const newData = {
+        ...prev,
+        [field]: value
+      };
+      
+      // Si se desmarca la discapacidad, limpiar el número de personas discapacitadas
+      if (field === 'discapacidad' && !value) {
+        newData.noPersonasDiscapacitadas = '';
+      }
+      
+      return newData;
+    });
   };
 
   // Funciones para manejar las selecciones
@@ -151,6 +161,7 @@ const AddResident = () => {
         fechaNacimiento: formData.fechaNacimiento || undefined,
         edad: formData.edad ? parseInt(formData.edad) : undefined,
         noPersonas: formData.noPersonas ? parseInt(formData.noPersonas) : undefined,
+        noPersonasDiscapacitadas: formData.noPersonasDiscapacitadas ? parseInt(formData.noPersonasDiscapacitadas) : 0,
         discapacidad: formData.discapacidad,
         
         // Información financiera
@@ -327,7 +338,7 @@ const AddResident = () => {
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="discapacidad">¿Tiene discapacidad?</Label>
+                        <Label htmlFor="discapacidad">¿Hay personas con discapacidad?</Label>
                         <Select 
                           value={formData.discapacidad ? 'true' : 'false'}
                           onValueChange={(value) => handleInputChange('discapacidad', value === 'true')}
@@ -341,6 +352,24 @@ const AddResident = () => {
                           </SelectContent>
                         </Select>
                       </div>
+
+                      {formData.discapacidad && (
+                        <div className="space-y-2">
+                          <Label htmlFor="noPersonasDiscapacitadas">Número de Personas con Discapacidad</Label>
+                          <Input 
+                            id="noPersonasDiscapacitadas" 
+                            type="number"
+                            min="1"
+                            max={formData.noPersonas || undefined}
+                            placeholder="Cantidad de personas con discapacidad" 
+                            value={formData.noPersonasDiscapacitadas}
+                            onChange={(e) => handleInputChange('noPersonasDiscapacitadas', e.target.value)}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Debe ser menor o igual al número total de personas
+                          </p>
+                        </div>
+                      )}
                     </div>
 
                     {/* Foto de Perfil */}

@@ -15,14 +15,33 @@ const authenticatedFetch = async (url: string, options: RequestInit = {}) => {
     ...options.headers,
   };
 
+  console.log(`API: Making request to ${API_BASE_URL}${url}`, {
+    method: options.method || 'GET',
+    headers: { ...headers, Authorization: token ? '[TOKEN PRESENT]' : 'No token' }
+  });
+
   const response = await fetch(`${API_BASE_URL}${url}`, {
     ...options,
     headers,
   });
 
+  console.log(`API: Response from ${url}:`, {
+    status: response.status,
+    statusText: response.statusText,
+    ok: response.ok
+  });
+
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Error de red' }));
-    throw new Error(error.message || `HTTP error! status: ${response.status}`);
+    let errorDetails;
+    try {
+      errorDetails = await response.json();
+      console.error(`API: Error details from ${url}:`, errorDetails);
+    } catch (parseError) {
+      errorDetails = { message: 'Error de red', status: response.status };
+      console.error(`API: Could not parse error from ${url}:`, parseError);
+    }
+    
+    throw new Error(errorDetails.message || errorDetails.error || `HTTP error! status: ${response.status}`);
   }
 
   return response;
@@ -416,7 +435,7 @@ export const residentService = {
   // Actualizar residente con documentos
   updateWithDocuments: async (id: string, formData: FormData) => {
     const token = getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/residents/${id}/with-documents`, {
+    const response = await fetch(`${API_BASE_URL}/residents/${id}/documents`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -445,6 +464,21 @@ export const residentService = {
     const result = await response.json();
     console.log(`API: Estatus actualizado:`, result);
     return result;
+  },
+
+  // Obtener residentes sin edificio asignado
+  getUnassigned: async () => {
+    const response = await authenticatedFetch('/residents/unassigned');
+    return response.json();
+  },
+
+  // Asignar edificio y apartamento a un residente
+  assignBuilding: async (residentId: string, buildingId: string, apartmentId: string) => {
+    const response = await authenticatedFetch(`/residents/${residentId}/assign-building`, {
+      method: 'PATCH',
+      body: JSON.stringify({ buildingId, apartmentId }),
+    });
+    return response.json();
   },
 };
 

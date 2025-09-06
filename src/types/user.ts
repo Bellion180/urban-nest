@@ -24,6 +24,7 @@ export interface Resident {
   createdById: string;
   noPersonas?: number; // Número de personas en el apartamento
   discapacidad?: boolean; // Si es una persona con discapacidad
+  noPersonasDiscapacitadas?: number; // Número de personas con discapacidad en el apartamento
   
   // Información INVI
   inviInfo?: {

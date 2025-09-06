@@ -328,13 +328,27 @@ const BuildingManagement: React.FC<BuildingManagementProps> = ({ isOpen, onClose
     
     const building = buildings.find(b => b.id === buildingId);
     
+    const confirmed = window.confirm(
+      `¿Estás seguro de que quieres eliminar el edificio "${building?.name}"?\n\n` +
+      `Si hay residentes en este edificio, serán desasignados y podrán ser reasignados a otro edificio después.\n\n` +
+      `Esta acción no se puede deshacer.`
+    );
+    
+    if (!confirmed) return;
+    
     try {
       setLoading(true);
-      await buildingService.delete(buildingId);
+      const result = await buildingService.delete(buildingId);
+      
+      let toastMessage = `${building?.name} ha sido eliminado`;
+      
+      if (result.desassignedResidents && result.desassignedResidents.length > 0) {
+        toastMessage += `\n\n${result.desassignedResidents.length} residentes fueron desasignados:\n${result.desassignedResidents.join(', ')}`;
+      }
       
       toast({
         title: "Edificio eliminado",
-        description: `${building?.name} ha sido eliminado`
+        description: toastMessage
       });
 
       // Recargar edificios

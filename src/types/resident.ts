@@ -20,6 +20,7 @@ export interface Resident {
   fechaNacimiento?: Date | null;
   noPersonas?: number | null;
   discapacidad: boolean;
+  noPersonasDiscapacitadas?: number | null;
   profilePhoto?: string | null;
   estatus: string;
   hasKey?: boolean;
@@ -49,6 +50,7 @@ export interface ResidentFormData {
   fechaNacimiento?: string;
   noPersonas?: number;
   discapacidad: boolean;
+  noPersonasDiscapacitadas?: number;
   deudaActual?: number;
   pagosRealizados?: number;
   buildingId: string;

@@ -246,6 +246,10 @@ const ResidentPersonalInfo = () => {
                 <p className="text-sm font-medium text-muted-foreground">No. de Personas</p>
                 <p className="text-base">{resident.noPersonas || 'No especificado'}</p>
               </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Personas con Discapacidad</p>
+                <p className="text-base">{resident.noPersonasDiscapacitadas || 0}</p>
+              </div>
             </CardContent>
           </Card>
         </div>

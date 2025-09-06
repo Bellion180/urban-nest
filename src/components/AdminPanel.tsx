@@ -11,6 +11,7 @@ import ResidentDetailModal from './ResidentDetailModal';
 import EditResidentModal from './EditResidentModal';
 import SimplePhotoModal from './SimplePhotoModal';
 import BuildingManagement from './BuildingManagement';
+import UnassignedResidentsModal from './UnassignedResidentsModal';
 import { 
   ArrowLeft, 
   Search, 
@@ -22,7 +23,8 @@ import {
   Settings,
   Plus,
   Building,
-  Loader2
+  Loader2,
+  Trash2
 } from 'lucide-react';
 import Header from './Header';
 import { toast } from '@/hooks/use-toast';
@@ -41,6 +43,7 @@ const AdminPanel = () => {
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
   const [currentPhoto, setCurrentPhoto] = useState('');
   const [showBuildingModal, setShowBuildingModal] = useState(false);
+  const [showUnassignedModal, setShowUnassignedModal] = useState(false);
 
   const filteredResidents = residents.filter(resident =>
     resident.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -121,6 +124,33 @@ const AdminPanel = () => {
     ));
   };
 
+  const handleDeleteResident = async (residentId: string, residentName: string) => {
+    const confirmed = window.confirm(
+      `¿Estás seguro de que quieres eliminar al residente ${residentName}? Esta acción no se puede deshacer.`
+    );
+    
+    if (!confirmed) return;
+
+    try {
+      await residentService.delete(residentId);
+      
+      // Actualizar la lista de residentes
+      setResidents(prev => prev.filter(resident => resident.id !== residentId));
+      
+      toast({
+        title: "Residente eliminado",
+        description: `${residentName} ha sido eliminado correctamente.`,
+      });
+    } catch (error) {
+      console.error('Error deleting resident:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar el residente. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handlePhotoClick = (photo: string) => {
     setCurrentPhoto(photo);
     setIsPhotoModalOpen(true);
@@ -167,6 +197,16 @@ const AdminPanel = () => {
                     <Building className="mr-2 h-4 w-4" />
                     <span className="hidden sm:inline">Gestionar Edificios</span>
                     <span className="sm:hidden">Edificios</span>
+                  </Button>
+
+                  <Button 
+                    variant="outline"
+                    onClick={() => setShowUnassignedModal(true)}
+                    className="border-orange-500 text-orange-600 hover:bg-orange-500 hover:text-white w-fit"
+                  >
+                    <Users className="mr-2 h-4 w-4" />
+                    <span className="hidden sm:inline">Residentes Sin Edificio</span>
+                    <span className="sm:hidden">Sin Edificio</span>
                   </Button>
 
                   <Button 
@@ -304,7 +344,7 @@ const AdminPanel = () => {
                     </div>
                   </div>
                   
-                  <div className="flex flex-row sm:flex-col lg:flex-row space-x-2 sm:space-x-0 sm:space-y-2 lg:space-y-0 lg:space-x-2">
+                  <div className="flex flex-row sm:flex-col lg:flex-row space-x-1 sm:space-x-0 sm:space-y-1 lg:space-y-0 lg:space-x-1">
                     <Button
                       size="sm"
                       variant="outline"
@@ -346,6 +386,18 @@ const AdminPanel = () => {
                             <span className="sm:hidden">Act.</span>
                           </>
                         )}
+                      </Button>
+                    )}
+                    {isAdmin && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleDeleteResident(resident.id, `${resident.nombre} ${resident.apellido}`)}
+                        className="flex-1 sm:flex-none text-xs sm:text-sm border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                      >
+                        <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                        <span className="hidden sm:inline">Eliminar</span>
+                        <span className="sm:hidden">Del.</span>
                       </Button>
                     )}
                   </div>
@@ -410,6 +462,15 @@ const AdminPanel = () => {
       <BuildingManagement
         isOpen={showBuildingModal}
         onClose={() => setShowBuildingModal(false)}
+      />
+
+      <UnassignedResidentsModal
+        isOpen={showUnassignedModal}
+        onClose={() => setShowUnassignedModal(false)}
+        onResidentAssigned={() => {
+          // Recargar residentes cuando se asigne uno
+          loadResidents();
+        }}
       />
     </div>
   );

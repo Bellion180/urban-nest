@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
+import fs from 'fs';
 import { prisma } from '../src/lib/prisma.js';
 
 // Importar rutas
@@ -31,18 +33,19 @@ app.use(cors(corsOptions));
 // Middlewares
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use(express.static('public'));
 
-// Servir archivos estáticos desde la carpeta public
-app.use('/edificios', express.static('public/edificios'));
-
-// Log de todas las peticiones
+// Log de todas las peticiones (antes de archivos estáticos para debug)
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
   console.log('Headers:', req.headers);
   console.log('Body:', req.body);
   next();
 });
+
+app.use(express.static('public'));
+
+// Servir archivos estáticos desde la carpeta public
+app.use('/edificios', express.static('public/edificios'));
 
 // Health check (solo una definición)
 app.get('/api/health', (req, res) => {
@@ -52,6 +55,24 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development'
   });
+});
+
+// Endpoint específico para servir documentos
+app.get('/api/documents/:buildingId/:floor/:apartment/:filename', (req, res) => {
+  const { buildingId, floor, apartment, filename } = req.params;
+  const filePath = `edificios/${buildingId}/pisos/${floor}/apartamentos/${apartment}/${filename}`;
+  const fullPath = path.join(process.cwd(), 'public', filePath);
+  
+  console.log('📄 Solicitud de documento:', filePath);
+  console.log('📂 Ruta completa:', fullPath);
+  
+  if (fs.existsSync(fullPath)) {
+    console.log('✅ Archivo existe, enviando...');
+    res.sendFile(fullPath);
+  } else {
+    console.log('❌ Archivo no encontrado');
+    res.status(404).json({ error: 'Documento no encontrado' });
+  }
 });
 
 // Rutas

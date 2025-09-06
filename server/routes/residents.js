@@ -13,10 +13,16 @@ console.log('🏠 Cargando rutas de residents...');
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     // Obtener datos del body para construir la ruta
-    const { buildingId, apartmentNumber, floorNumber } = req.body;
+    let { buildingId, apartmentNumber, floorNumber } = req.body;
     
+    // Para casos de edición, la información se obtendrá en el endpoint
+    // Por ahora, usar un directorio temporal
     if (!buildingId || !apartmentNumber || !floorNumber) {
-      return cb(new Error('buildingId, apartmentNumber y floorNumber son requeridos'));
+      const tempDir = path.join('public', 'temp');
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+      }
+      return cb(null, tempDir);
     }
     
     const dir = path.join('public', 'edificios', buildingId, 'pisos', floorNumber.toString(), 'apartamentos', apartmentNumber);
@@ -66,7 +72,8 @@ const upload = multer({
     }
   },
   limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB para todos los archivos
+    fileSize: 100 * 1024 * 1024, // 100MB límite máximo
+    fieldSize: 2 * 1024 * 1024 // 2MB para campos de texto
   }
 });
 
@@ -135,7 +142,7 @@ router.get('/', authMiddleware, async (req, res) => {
     });
 
     const formattedResidents = residents.map(resident => {
-      console.log(`🔧 Mapping resident: ${resident.nombre} - INVI: ${resident.inviInfo ? 'EXISTS' : 'NULL'}`);
+      console.log(`🔧 Mapping resident: ${resident.nombre} - Building: ${resident.building?.name || 'SIN EDIFICIO'} - Apartment: ${resident.apartment?.number || 'SIN APARTAMENTO'}`);
       return {
       id: resident.id,
       nombre: resident.nombre,
@@ -146,6 +153,7 @@ router.get('/', authMiddleware, async (req, res) => {
       fechaNacimiento: resident.fechaNacimiento,
       noPersonas: resident.noPersonas,
       discapacidad: resident.discapacidad,
+      noPersonasDiscapacitadas: resident.noPersonasDiscapacitadas,
       profilePhoto: resident.profilePhoto,
       // Campos de documentos
       documentoCurp: resident.documentoCurp,
@@ -158,9 +166,9 @@ router.get('/', authMiddleware, async (req, res) => {
       deudaActual: resident.deudaActual,
       pagosRealizados: resident.pagosRealizados,
       informe: resident.informe,
-      edificio: resident.building.name,
-      apartamento: resident.apartment.number,
-      piso: resident.apartment.floor.name,
+      edificio: resident.building?.name || null,
+      apartamento: resident.apartment?.number || null,
+      piso: resident.apartment?.floor?.name || null,
       recentPayments: resident.payments,
       inviInfo: resident.inviInfo
     };
@@ -244,6 +252,7 @@ router.get('/by-floor/:buildingId/:floorNumber', authMiddleware, async (req, res
       fechaNacimiento: resident.fechaNacimiento,
       noPersonas: resident.noPersonas,
       discapacidad: resident.discapacidad,
+      noPersonasDiscapacitadas: resident.noPersonasDiscapacitadas,
       profilePhoto: resident.profilePhoto,
       // Campos de documentos
       documentoCurp: resident.documentoCurp,
@@ -307,6 +316,7 @@ router.post('/', upload.fields([
       fechaNacimiento,
       noPersonas,
       discapacidad,
+      noPersonasDiscapacitadas,
       deudaActual,
       pagosRealizados,
       buildingId,
@@ -402,6 +412,9 @@ router.post('/', upload.fields([
         fechaNacimiento: fechaNacimiento ? new Date(fechaNacimiento) : null,
         noPersonas: noPersonas ? parseInt(noPersonas) : null,
         discapacidad: discapacidad === 'true' || discapacidad === true,
+        noPersonasDiscapacitadas: (discapacidad === 'true' || discapacidad === true) 
+          ? (noPersonasDiscapacitadas ? parseInt(noPersonasDiscapacitadas) : 0) 
+          : 0,
         deudaActual: deudaActual ? parseFloat(deudaActual) : 0,
         pagosRealizados: pagosRealizados ? parseFloat(pagosRealizados) : 0,
         profilePhoto: profilePhotoPath,
@@ -444,6 +457,67 @@ router.post('/', upload.fields([
     });
   } catch (error) {
     console.error('Error al crear residente:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// Obtener residentes sin edificio asignado
+router.get('/unassigned', authMiddleware, async (req, res) => {
+  try {
+    console.log('🏠 API: Obteniendo residentes sin edificio asignado');
+
+    // Verificar que es admin
+    if (req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Acceso denegado' });
+    }
+
+    const unassignedResidents = await prisma.resident.findMany({
+      where: {
+        buildingId: null
+      },
+      include: {
+        inviInfo: true
+      }
+    });
+
+    console.log(`🔍 Encontrados ${unassignedResidents.length} residentes sin edificio asignado`);
+    
+    // Mostrar detalles de cada residente
+    unassignedResidents.forEach((resident, index) => {
+      console.log(`   ${index + 1}. ${resident.nombre} ${resident.apellido} - Building ID: ${resident.buildingId}`);
+    });
+
+    const formattedResidents = unassignedResidents.map(resident => ({
+      id: resident.id,
+      nombre: resident.nombre,
+      apellido: resident.apellido,
+      edad: resident.edad,
+      email: resident.email,
+      telefono: resident.telefono,
+      fechaNacimiento: resident.fechaNacimiento,
+      noPersonas: resident.noPersonas,
+      discapacidad: resident.discapacidad,
+      noPersonasDiscapacitadas: resident.noPersonasDiscapacitadas,
+      profilePhoto: resident.profilePhoto,
+      estatus: resident.estatus,
+      hasKey: resident.hasKey,
+      registrationDate: resident.registrationDate,
+      deudaActual: resident.deudaActual,
+      pagosRealizados: resident.pagosRealizados,
+      informe: resident.informe,
+      edificio: null,
+      apartamento: null,
+      piso: null,
+      pisoNumero: null,
+      buildingId: null,
+      apartmentId: null,
+      inviInfo: resident.inviInfo
+    }));
+
+    console.log(`📤 Enviando ${formattedResidents.length} residentes sin edificio al frontend`);
+    res.json(formattedResidents);
+  } catch (error) {
+    console.error('Error al obtener residentes sin edificio:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
@@ -526,6 +600,7 @@ router.put('/:id/with-documents', authMiddleware, upload.fields([
     // Procesar campos numéricos
     if (updateData.edad) updateData.edad = parseInt(updateData.edad);
     if (updateData.noPersonas) updateData.noPersonas = parseInt(updateData.noPersonas);
+    if (updateData.noPersonasDiscapacitadas) updateData.noPersonasDiscapacitadas = parseInt(updateData.noPersonasDiscapacitadas);
     if (updateData.deudaActual) updateData.deudaActual = parseFloat(updateData.deudaActual);
     if (updateData.pagosRealizados) updateData.pagosRealizados = parseFloat(updateData.pagosRealizados);
     if (updateData.fechaNacimiento) updateData.fechaNacimiento = new Date(updateData.fechaNacimiento);
@@ -629,7 +704,7 @@ router.put('/:id/with-documents', authMiddleware, upload.fields([
 });
 */
 
-// Actualizar residente
+// Actualizar residente (solo datos, sin archivos)
 router.put('/:id', authMiddleware, async (req, res) => {
   console.log('�🚨🚨 ENDPOINT PUT /:id LLAMADO 🚨🚨🚨');
   console.log('�📝 Endpoint general PUT llamado para residente:', req.params.id);
@@ -648,14 +723,25 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
     // Obtener el residente actual para conocer sus documentos actuales
     const currentResident = await prisma.resident.findUnique({
-      where: { id }
+      where: { id },
+      include: {
+        building: true,
+        apartment: {
+          include: {
+            floor: true
+          }
+        }
+      }
     });
 
     if (!currentResident) {
       return res.status(404).json({ error: 'Residente no encontrado' });
     }
 
-    console.log('✅ Residente encontrado en BD');
+    console.log('✅ Residente encontrado en BD con relaciones');
+    console.log('🏢 Building:', currentResident.building?.id);
+    console.log('🏠 Apartment:', currentResident.apartment?.number);
+    console.log('📊 Floor:', currentResident.apartment?.floor?.number);
 
     // Manejar eliminación de documentos si se especifica
     const documentsToRemove = [];
@@ -712,21 +798,160 @@ router.put('/:id', authMiddleware, async (req, res) => {
       }
     }
 
+    console.log('� Procesando nuevos documentos subidos...');
+
+    // Procesar nuevos archivos de documentos si se enviaron
+    if (req.files) {
+      console.log('📁 Archivos recibidos:', Object.keys(req.files));
+      
+      const fileFieldMap = {
+        'documents_curp': 'documentoCurp',
+        'documents_comprobanteDomicilio': 'documentoComprobanteDomicilio',
+        'documents_actaNacimiento': 'documentoActaNacimiento',
+        'documents_ine': 'documentoIne'
+      };
+
+      // Obtener información del residente para crear la ruta correcta
+      const buildingId = currentResident.building.id;
+      const apartmentNumber = currentResident.apartment.number.toString();
+      const floorNumber = currentResident.apartment.floor.number.toString();
+      
+      const finalDir = path.join('public', 'edificios', buildingId, 'pisos', floorNumber, 'apartamentos', apartmentNumber);
+      
+      // Crear directorio final si no existe
+      if (!fs.existsSync(finalDir)) {
+        fs.mkdirSync(finalDir, { recursive: true });
+        console.log(`📂 Directorio creado: ${finalDir}`);
+      }
+
+      Object.entries(req.files).forEach(([fieldName, fileArray]) => {
+        if (fileFieldMap[fieldName] && fileArray && fileArray.length > 0) {
+          const file = fileArray[0];
+          
+          // Crear nombre del archivo final
+          const docType = fieldName.replace('documents_', '');
+          const ext = path.extname(file.originalname).toLowerCase();
+          const finalFileName = `documento_${docType}${ext}`;
+          const finalFilePath = path.join(finalDir, finalFileName);
+          
+          try {
+            // Mover archivo de temp al directorio final
+            fs.renameSync(file.path, finalFilePath);
+            
+            // Crear ruta relativa para la base de datos
+            const relativePath = `/edificios/${buildingId}/pisos/${floorNumber}/apartamentos/${apartmentNumber}/${finalFileName}`;
+            updateData[fileFieldMap[fieldName]] = relativePath;
+            
+            console.log(`📄 Archivo movido: ${file.path} -> ${finalFilePath}`);
+            console.log(`📄 Ruta en BD: ${relativePath}`);
+          } catch (error) {
+            console.error(`❌ Error moviendo archivo ${fieldName}:`, error);
+          }
+        }
+      });
+    }
+
     console.log('🔄 Procesando campos numéricos...');
 
     // Procesar campos numéricos
     if (updateData.edad) updateData.edad = parseInt(updateData.edad);
     if (updateData.noPersonas) updateData.noPersonas = parseInt(updateData.noPersonas);
+    if (updateData.noPersonasDiscapacitadas) updateData.noPersonasDiscapacitadas = parseInt(updateData.noPersonasDiscapacitadas);
     if (updateData.deudaActual) updateData.deudaActual = parseFloat(updateData.deudaActual);
     if (updateData.pagosRealizados) updateData.pagosRealizados = parseFloat(updateData.pagosRealizados);
     if (updateData.fechaNacimiento) updateData.fechaNacimiento = new Date(updateData.fechaNacimiento);
 
+    // Si no hay discapacidad, establecer personas discapacitadas a 0
+    if (updateData.discapacidad === false) {
+      updateData.noPersonasDiscapacitadas = 0;
+      console.log('🚫 Discapacidad = false, estableciendo noPersonasDiscapacitadas = 0');
+    }
+
+    console.log('📋 Procesando información INVI (CÓDIGO ACTUALIZADO)...');
+    
+    // Preparar datos para actualización de información INVI
+    let inviData = null;
+    if (updateData.inviInfo) {
+      console.log('📊 Datos INVI recibidos:', updateData.inviInfo);
+      
+      inviData = {
+        idInvi: updateData.inviInfo.idInvi || null,
+        mensualidades: updateData.inviInfo.mensualidades ? parseInt(updateData.inviInfo.mensualidades) : null,
+        deuda: updateData.inviInfo.deuda ? parseFloat(updateData.inviInfo.deuda) : 0,
+        fechaContrato: updateData.inviInfo.fechaContrato ? new Date(updateData.inviInfo.fechaContrato) : null,
+        idCompanero: updateData.inviInfo.idCompanero || null
+      };
+      
+      console.log('✅ Datos INVI procesados para BD:', inviData);
+      
+      // Remover el objeto inviInfo del updateData principal
+      delete updateData.inviInfo;
+    }
+
     // Limpiar campos que no deben ir a la base de datos
     delete updateData.removeDocuments;
 
+    console.log('🔄 Actualizando residente en BD...');
+
     const resident = await prisma.resident.update({
       where: { id },
-      data: updateData,
+      data: {
+        ...updateData,
+        // Actualizar o crear información INVI si se proporcionó
+        ...(inviData && {
+          inviInfo: {
+            upsert: {
+              create: inviData,
+              update: inviData
+            }
+          }
+        })
+      },
+      include: {
+        building: true,
+        apartment: {
+          include: {
+            floor: true
+          }
+        },
+        inviInfo: true
+      }
+    });
+
+    res.json({
+      message: 'Residente actualizado exitosamente',
+      resident
+    });
+  } catch (error) {
+    console.error('Error al actualizar residente:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// Actualizar residente con documentos
+router.put('/:id/documents', authMiddleware, upload.fields([
+  { name: 'documents_curp', maxCount: 1 },
+  { name: 'documents_comprobanteDomicilio', maxCount: 1 },
+  { name: 'documents_actaNacimiento', maxCount: 1 },
+  { name: 'documents_ine', maxCount: 1 },
+  { name: 'profilePhoto', maxCount: 1 }
+]), async (req, res) => {
+  console.log('📁🚨 ENDPOINT PUT /:id/documents LLAMADO 🚨📁');
+  console.log('📋 Body recibido:', req.body);
+  console.log('📁 Files recibidos:', req.files ? Object.keys(req.files) : 'ninguno');
+  
+  try {
+    const { id } = req.params;
+    const updateData = { ...req.body };
+
+    // Verificar que es admin
+    if (req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Acceso denegado' });
+    }
+
+    // Obtener el residente actual con relaciones
+    const currentResident = await prisma.resident.findUnique({
+      where: { id },
       include: {
         building: true,
         apartment: {
@@ -737,12 +962,191 @@ router.put('/:id', authMiddleware, async (req, res) => {
       }
     });
 
+    if (!currentResident) {
+      return res.status(404).json({ error: 'Residente no encontrado' });
+    }
+
+    console.log('✅ Residente encontrado para subida de documentos');
+
+    // Procesar archivos de documentos si se enviaron
+    if (req.files) {
+      const fileFieldMap = {
+        'documents_curp': 'documentoCurp',
+        'documents_comprobanteDomicilio': 'documentoComprobanteDomicilio',
+        'documents_actaNacimiento': 'documentoActaNacimiento',
+        'documents_ine': 'documentoIne'
+      };
+
+      // Obtener información del residente para crear la ruta correcta
+      const buildingId = currentResident.building.id;
+      const apartmentNumber = currentResident.apartment.number.toString();
+      const floorNumber = currentResident.apartment.floor.number.toString();
+      
+      const finalDir = path.join('public', 'edificios', buildingId, 'pisos', floorNumber, 'apartamentos', apartmentNumber);
+      
+      // Crear directorio final si no existe
+      if (!fs.existsSync(finalDir)) {
+        fs.mkdirSync(finalDir, { recursive: true });
+        console.log(`📂 Directorio creado: ${finalDir}`);
+      }
+
+      Object.entries(req.files).forEach(([fieldName, fileArray]) => {
+        if (fileFieldMap[fieldName] && fileArray && fileArray.length > 0) {
+          const file = fileArray[0];
+          
+          // Crear nombre del archivo final
+          const docType = fieldName.replace('documents_', '');
+          const ext = path.extname(file.originalname).toLowerCase();
+          const finalFileName = `documento_${docType}${ext}`;
+          const finalFilePath = path.join(finalDir, finalFileName);
+          
+          try {
+            // Mover archivo de temp al directorio final
+            fs.renameSync(file.path, finalFilePath);
+            
+            // Crear ruta relativa para la base de datos
+            const relativePath = `/edificios/${buildingId}/pisos/${floorNumber}/apartamentos/${apartmentNumber}/${finalFileName}`;
+            updateData[fileFieldMap[fieldName]] = relativePath;
+            
+            console.log(`📄 Archivo movido: ${file.path} -> ${finalFilePath}`);
+            console.log(`📄 Ruta en BD: ${relativePath}`);
+          } catch (error) {
+            console.error(`❌ Error moviendo archivo ${fieldName}:`, error);
+          }
+        }
+      });
+    }
+
+    // Manejar eliminación de documentos si se especifica
+    const documentsToRemove = [];
+    if (updateData.removeDocuments) {
+      try {
+        if (Array.isArray(updateData.removeDocuments)) {
+          documentsToRemove.push(...updateData.removeDocuments);
+        } else {
+          documentsToRemove.push(...JSON.parse(updateData.removeDocuments));
+        }
+        console.log('🗑️ Documentos a eliminar:', documentsToRemove);
+      } catch (e) {
+        console.error('Error parsing removeDocuments:', e);
+      }
+    }
+
+    // Eliminar documentos solicitados
+    for (const docType of documentsToRemove) {
+      console.log(`🗑️ Procesando documento: ${docType}`);
+      const fieldMap = {
+        'curp': 'documentoCurp',
+        'comprobanteDomicilio': 'documentoComprobanteDomicilio',
+        'actaNacimiento': 'documentoActaNacimiento',
+        'ine': 'documentoIne'
+      };
+
+      const dbField = fieldMap[docType];
+      
+      if (dbField && currentResident[dbField]) {
+        // Eliminar archivo físico
+        const fullPath = path.join(process.cwd(), 'public', currentResident[dbField]);
+        
+        try {
+          if (fs.existsSync(fullPath)) {
+            fs.unlinkSync(fullPath);
+            console.log(`📄 Documento eliminado: ${fullPath}`);
+          }
+        } catch (err) {
+          console.error(`❌ Error eliminando archivo ${fullPath}:`, err);
+        }
+        
+        // Limpiar campo en base de datos
+        updateData[dbField] = null;
+      }
+    }
+
+    // Limpiar campos que no deben ir a la base de datos
+    delete updateData.removeDocuments;
+
+    console.log('🔄 Procesando campos numéricos para FormData...');
+    
+    // Procesar campos numéricos (FormData viene como strings)
+    if (updateData.edad) updateData.edad = parseInt(updateData.edad);
+    if (updateData.noPersonas) updateData.noPersonas = parseInt(updateData.noPersonas);
+    if (updateData.noPersonasDiscapacitadas) updateData.noPersonasDiscapacitadas = parseInt(updateData.noPersonasDiscapacitadas);
+    if (updateData.deudaActual) updateData.deudaActual = parseFloat(updateData.deudaActual);
+    if (updateData.pagosRealizados) updateData.pagosRealizados = parseFloat(updateData.pagosRealizados);
+    if (updateData.fechaNacimiento) updateData.fechaNacimiento = new Date(updateData.fechaNacimiento);
+    
+    // Procesar boolean
+    if (updateData.discapacidad) updateData.discapacidad = updateData.discapacidad === 'true';
+
+    // Si no hay discapacidad, establecer personas discapacitadas a 0
+    if (updateData.discapacidad === false) {
+      updateData.noPersonasDiscapacitadas = 0;
+      console.log('🚫 Discapacidad = false (FormData), estableciendo noPersonasDiscapacitadas = 0');
+    }
+
+    console.log('📋 Procesando información INVI para FormData...');
+    
+    // Procesar información INVI si está presente
+    let inviData = null;
+    if (updateData.inviInfo && updateData.inviInfo !== '[object Object]') {
+      try {
+        // Si inviInfo es un string JSON, parsearlo
+        const inviInfoParsed = typeof updateData.inviInfo === 'string' ? JSON.parse(updateData.inviInfo) : updateData.inviInfo;
+        
+        inviData = {
+          idInvi: inviInfoParsed.idInvi || null,
+          mensualidades: inviInfoParsed.mensualidades ? parseInt(inviInfoParsed.mensualidades) : null,
+          deuda: inviInfoParsed.deuda ? parseFloat(inviInfoParsed.deuda) : 0,
+          fechaContrato: inviInfoParsed.fechaContrato ? new Date(inviInfoParsed.fechaContrato) : null,
+          idCompanero: inviInfoParsed.idCompanero || null
+        };
+        
+        console.log('✅ Datos INVI procesados para FormData:', inviData);
+        
+        // Remover el objeto inviInfo del updateData principal
+        delete updateData.inviInfo;
+      } catch (error) {
+        console.error('❌ Error procesando INVI Info:', error);
+        delete updateData.inviInfo;
+      }
+    } else {
+      delete updateData.inviInfo;
+    }
+
+    console.log('🔄 Actualizando residente con documentos en BD...');
+
+    // Actualizar residente en la base de datos
+    const resident = await prisma.resident.update({
+      where: { id },
+      data: {
+        ...updateData,
+        // Actualizar o crear información INVI si se proporcionó
+        ...(inviData && {
+          inviInfo: {
+            upsert: {
+              create: inviData,
+              update: inviData
+            }
+          }
+        })
+      },
+      include: {
+        building: true,
+        apartment: {
+          include: {
+            floor: true
+          }
+        },
+        inviInfo: true
+      }
+    });
+
     res.json({
-      message: 'Residente actualizado exitosamente',
+      message: 'Documentos actualizados exitosamente',
       resident
     });
   } catch (error) {
-    console.error('Error al actualizar residente:', error);
+    console.error('Error al actualizar documentos:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
@@ -792,6 +1196,97 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     });
   } catch (error) {
     console.error('Error al eliminar residente:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// Asignar edificio y apartamento a un residente
+router.patch('/:id/assign-building', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { buildingId, apartmentId } = req.body;
+
+    console.log(`🏠 Asignando edificio ${buildingId} y apartamento ${apartmentId} al residente ${id}`);
+
+    // Verificar que es admin
+    if (req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Acceso denegado' });
+    }
+
+    // Verificar que el apartamento existe y está disponible
+    const apartment = await prisma.apartment.findUnique({
+      where: { id: apartmentId },
+      include: {
+        floor: true,
+        building: true
+      }
+    });
+
+    if (!apartment) {
+      return res.status(404).json({ error: 'Apartamento no encontrado' });
+    }
+
+    if (apartment.buildingId !== buildingId) {
+      return res.status(400).json({ error: 'El apartamento no pertenece al edificio especificado' });
+    }
+
+    // Verificar si ya hay un residente en ese apartamento
+    const existingResident = await prisma.resident.findFirst({
+      where: {
+        buildingId: buildingId,
+        apartmentId: apartmentId
+      }
+    });
+
+    if (existingResident) {
+      return res.status(400).json({ error: 'El apartamento ya está ocupado por otro residente' });
+    }
+
+    // Asignar el edificio y apartamento al residente
+    const updatedResident = await prisma.resident.update({
+      where: { id },
+      data: {
+        buildingId: buildingId,
+        apartmentId: apartmentId
+      },
+      include: {
+        building: {
+          select: {
+            name: true
+          }
+        },
+        apartment: {
+          include: {
+            floor: {
+              select: {
+                name: true,
+                number: true
+              }
+            }
+          }
+        },
+        inviInfo: true
+      }
+    });
+
+    console.log(`✅ Residente ${id} asignado exitosamente`);
+
+    res.json({
+      message: 'Residente asignado exitosamente',
+      resident: {
+        id: updatedResident.id,
+        nombre: updatedResident.nombre,
+        apellido: updatedResident.apellido,
+        edificio: updatedResident.building?.name,
+        apartamento: updatedResident.apartment?.number,
+        piso: updatedResident.apartment?.floor?.name,
+        pisoNumero: updatedResident.apartment?.floor?.number,
+        buildingId: updatedResident.buildingId,
+        apartmentId: updatedResident.apartmentId
+      }
+    });
+  } catch (error) {
+    console.error('Error al asignar edificio:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });

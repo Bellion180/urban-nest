@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
-import { residentService } from '@/services/api';
+import { residentService, buildingService } from '@/services/api';
 import { Resident } from '@/types/user';
 import { 
   User, 
@@ -46,6 +46,7 @@ const EditResidentModal = ({ resident, isOpen, onClose, onUpdate }: EditResident
     telefono: '',
     fechaNacimiento: '',
     noPersonas: '',
+    noPersonasDiscapacitadas: '',
     discapacidad: false,
     
     // Información financiera
@@ -53,7 +54,12 @@ const EditResidentModal = ({ resident, isOpen, onClose, onUpdate }: EditResident
     pagosRealizados: '',
     
     // Información INVI
-    informe: ''
+    informe: '',
+    idInvi: '',
+    mensualidades: '',
+    deudaInvi: '',
+    fechaContrato: '',
+    idCompanero: ''
   });
 
   // Estados para documentos
@@ -73,6 +79,13 @@ const EditResidentModal = ({ resident, isOpen, onClose, onUpdate }: EditResident
 
   const [documentsToRemove, setDocumentsToRemove] = useState<string[]>([]);
 
+  // Estados para edificios, pisos y apartamentos
+  const [buildings, setBuildings] = useState<any[]>([]);
+  const [selectedBuilding, setSelectedBuilding] = useState<string>('');
+  const [selectedFloor, setSelectedFloor] = useState<string>('');
+  const [selectedApartment, setSelectedApartment] = useState<string>('');
+  const [loadingBuildings, setLoadingBuildings] = useState(false);
+
   // Cargar datos del residente cuando se abre el modal
   useEffect(() => {
     if (resident && isOpen) {
@@ -84,10 +97,16 @@ const EditResidentModal = ({ resident, isOpen, onClose, onUpdate }: EditResident
         telefono: resident.telefono || '',
         fechaNacimiento: resident.fechaNacimiento ? new Date(resident.fechaNacimiento).toISOString().split('T')[0] : '',
         noPersonas: resident.noPersonas?.toString() || '',
+        noPersonasDiscapacitadas: resident.noPersonasDiscapacitadas?.toString() || '0',
         discapacidad: resident.discapacidad || false,
         deudaActual: resident.deudaActual?.toString() || '0',
         pagosRealizados: resident.pagosRealizados?.toString() || '0',
-        informe: resident.informe || ''
+        informe: resident.informe || '',
+        idInvi: resident.inviInfo?.idInvi || '',
+        mensualidades: resident.inviInfo?.mensualidades || '',
+        deudaInvi: resident.inviInfo?.deuda?.toString() || '',
+        fechaContrato: resident.inviInfo?.fechaContrato ? new Date(resident.inviInfo.fechaContrato).toISOString().split('T')[0] : '',
+        idCompanero: resident.inviInfo?.idCompanero || ''
       });
 
       // Cargar documentos actuales
@@ -108,14 +127,58 @@ const EditResidentModal = ({ resident, isOpen, onClose, onUpdate }: EditResident
 
       // Limpiar documentos marcados para eliminación
       setDocumentsToRemove([]);
+
+      // Inicializar selecciones de edificio
+      if (resident.buildingId) {
+        setSelectedBuilding(resident.buildingId);
+      }
+      if (resident.apartment?.floor?.id) {
+        setSelectedFloor(resident.apartment.floor.id);
+      }
+      if (resident.apartmentId) {
+        setSelectedApartment(resident.apartmentId);
+      }
     }
   }, [resident, isOpen]);
 
+  // Cargar edificios
+  useEffect(() => {
+    const loadBuildings = async () => {
+      try {
+        setLoadingBuildings(true);
+        const data = await buildingService.getAll();
+        setBuildings(data);
+      } catch (error) {
+        console.error('Error loading buildings:', error);
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los edificios",
+          variant: "destructive"
+        });
+      } finally {
+        setLoadingBuildings(false);
+      }
+    };
+
+    if (isOpen) {
+      loadBuildings();
+    }
+  }, [isOpen]);
+
   const handleInputChange = (field: string, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setFormData(prev => {
+      const newData = {
+        ...prev,
+        [field]: value
+      };
+      
+      // Si se desmarca la discapacidad, limpiar el número de personas discapacitadas
+      if (field === 'discapacidad' && !value) {
+        newData.noPersonasDiscapacitadas = '';
+      }
+      
+      return newData;
+    });
   };
 
   const handleDocumentChange = (documentType: keyof typeof documentFiles, file: File | null) => {
@@ -123,6 +186,21 @@ const EditResidentModal = ({ resident, isOpen, onClose, onUpdate }: EditResident
       ...prev,
       [documentType]: file
     }));
+  };
+
+  const handleBuildingChange = (buildingId: string) => {
+    setSelectedBuilding(buildingId);
+    setSelectedFloor('');
+    setSelectedApartment('');
+  };
+
+  const handleFloorChange = (floorId: string) => {
+    setSelectedFloor(floorId);
+    setSelectedApartment('');
+  };
+
+  const handleApartmentChange = (apartmentId: string) => {
+    setSelectedApartment(apartmentId);
   };
 
   const handleRemoveDocument = (documentType: keyof typeof currentDocuments) => {
@@ -152,14 +230,44 @@ const EditResidentModal = ({ resident, isOpen, onClose, onUpdate }: EditResident
       setLoading(true);
       
       // Preparar datos para enviar
-      const updateData = {
+      const updateData: any = {
         ...formData,
         edad: formData.edad ? parseInt(formData.edad) : null,
         noPersonas: formData.noPersonas ? parseInt(formData.noPersonas) : null,
+        noPersonasDiscapacitadas: formData.noPersonasDiscapacitadas ? parseInt(formData.noPersonasDiscapacitadas) : 0,
         deudaActual: formData.deudaActual ? parseFloat(formData.deudaActual) : 0,
         pagosRealizados: formData.pagosRealizados ? parseFloat(formData.pagosRealizados) : 0,
-        fechaNacimiento: formData.fechaNacimiento || null
+        fechaNacimiento: formData.fechaNacimiento || null,
+        // Estructurar información INVI
+        inviInfo: {
+          idInvi: formData.idInvi,
+          mensualidades: formData.mensualidades,
+          deuda: formData.deudaInvi ? parseFloat(formData.deudaInvi) : 0,
+          fechaContrato: formData.fechaContrato || null,
+          idCompanero: formData.idCompanero || null
+        }
       };
+
+      // Agregar información de ubicación si se ha modificado
+      if (selectedBuilding && selectedBuilding !== resident.buildingId) {
+        updateData.buildingId = selectedBuilding;
+      }
+      if (selectedApartment && selectedApartment !== resident.apartmentId) {
+        updateData.apartmentId = selectedApartment;
+        // Obtener información del piso seleccionado
+        const building = buildings.find(b => b.id === selectedBuilding);
+        const floor = building?.floors.find((f: any) => f.id === selectedFloor);
+        if (floor) {
+          updateData.floorNumber = floor.number?.toString() || floor.name?.match(/\d+/)?.[0] || '1';
+        }
+      }
+
+      // Remover campos INVI individuales del objeto principal
+      delete updateData.idInvi;
+      delete updateData.mensualidades;
+      delete updateData.deudaInvi;
+      delete updateData.fechaContrato;
+      delete updateData.idCompanero;
 
       // Si hay documentos para eliminar, enviar con el endpoint normal
       const hasDocumentsToRemove = documentsToRemove.length > 0;
@@ -190,7 +298,12 @@ const EditResidentModal = ({ resident, isOpen, onClose, onUpdate }: EditResident
           // Agregar todos los campos del formulario
           Object.entries(updateData).forEach(([key, value]) => {
             if (value !== null && value !== undefined) {
-              formDataToSend.append(key, value.toString());
+              if (key === 'inviInfo') {
+                // Serializar objeto INVI como JSON
+                formDataToSend.append(key, JSON.stringify(value));
+              } else {
+                formDataToSend.append(key, value.toString());
+              }
             }
           });
 
@@ -352,7 +465,100 @@ const EditResidentModal = ({ resident, isOpen, onClose, onUpdate }: EditResident
                       onChange={(e) => handleInputChange('discapacidad', e.target.checked)}
                       className="h-4 w-4 rounded border-gray-300"
                     />
-                    <Label htmlFor="discapacidad">Persona con discapacidad</Label>
+                    <Label htmlFor="discapacidad">¿Hay personas con discapacidad?</Label>
+                  </div>
+                  {formData.discapacidad && (
+                    <div>
+                      <Label htmlFor="noPersonasDiscapacitadas">Número de Personas con Discapacidad</Label>
+                      <Input
+                        id="noPersonasDiscapacitadas"
+                        type="number"
+                        min="1"
+                        max={formData.noPersonas || undefined}
+                        value={formData.noPersonasDiscapacitadas}
+                        onChange={(e) => handleInputChange('noPersonasDiscapacitadas', e.target.value)}
+                        placeholder="Cantidad de personas con discapacidad"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Debe ser menor o igual al número total de personas
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Ubicación del Residente */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Home className="h-4 w-4" />
+                  Ubicación
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="building">Edificio</Label>
+                    <Select 
+                      value={selectedBuilding} 
+                      onValueChange={handleBuildingChange}
+                      disabled={loadingBuildings}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar edificio" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {buildings.map((building) => (
+                          <SelectItem key={building.id} value={building.id}>
+                            {building.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="floor">Piso</Label>
+                    <Select 
+                      value={selectedFloor} 
+                      onValueChange={handleFloorChange}
+                      disabled={!selectedBuilding}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar piso" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {selectedBuilding && buildings
+                          .find(b => b.id === selectedBuilding)?.floors
+                          .map((floor: any) => (
+                            <SelectItem key={floor.id} value={floor.id}>
+                              {floor.name}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="apartment">Apartamento</Label>
+                    <Select 
+                      value={selectedApartment} 
+                      onValueChange={handleApartmentChange}
+                      disabled={!selectedFloor}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar apartamento" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {selectedFloor && buildings
+                          .find(b => b.id === selectedBuilding)?.floors
+                          .find((f: any) => f.id === selectedFloor)?.apartments
+                          .map((apt: string) => (
+                            <SelectItem key={apt} value={apt}>
+                              {apt}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </CardContent>
@@ -427,7 +633,74 @@ const EditResidentModal = ({ resident, isOpen, onClose, onUpdate }: EditResident
                   Información INVI
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* ID INVI */}
+                  <div>
+                    <Label htmlFor="idInvi">ID INVI</Label>
+                    <Input
+                      id="idInvi"
+                      value={formData.idInvi}
+                      onChange={(e) => handleInputChange('idInvi', e.target.value)}
+                      placeholder="Ej: INVI-2024-001234"
+                      className="mt-2"
+                    />
+                  </div>
+
+                  {/* Mensualidades */}
+                  <div>
+                    <Label htmlFor="mensualidades">Mensualidades</Label>
+                    <Input
+                      id="mensualidades"
+                      value={formData.mensualidades}
+                      onChange={(e) => handleInputChange('mensualidades', e.target.value)}
+                      placeholder="Ej: 360 meses"
+                      className="mt-2"
+                    />
+                  </div>
+
+                  {/* Deuda INVI */}
+                  <div>
+                    <Label htmlFor="deudaInvi">Deuda INVI</Label>
+                    <Input
+                      id="deudaInvi"
+                      type="number"
+                      step="0.01"
+                      value={formData.deudaInvi}
+                      onChange={(e) => handleInputChange('deudaInvi', e.target.value)}
+                      placeholder="0.00"
+                      className="mt-2"
+                    />
+                  </div>
+
+                  {/* Fecha de Contrato */}
+                  <div>
+                    <Label htmlFor="fechaContrato">Fecha de Contrato</Label>
+                    <Input
+                      id="fechaContrato"
+                      type="date"
+                      value={formData.fechaContrato}
+                      onChange={(e) => handleInputChange('fechaContrato', e.target.value)}
+                      className="mt-2"
+                    />
+                  </div>
+
+                  {/* ID Compañero */}
+                  <div className="md:col-span-2">
+                    <Label htmlFor="idCompanero">ID Compañero (Opcional)</Label>
+                    <Input
+                      id="idCompanero"
+                      value={formData.idCompanero}
+                      onChange={(e) => handleInputChange('idCompanero', e.target.value)}
+                      placeholder="ID del compañero en el crédito INVI"
+                      className="mt-2"
+                    />
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Informe INVI */}
                 <div>
                   <Label htmlFor="informe">Informe INVI</Label>
                   <Textarea
@@ -435,7 +708,7 @@ const EditResidentModal = ({ resident, isOpen, onClose, onUpdate }: EditResident
                     value={formData.informe}
                     onChange={(e) => handleInputChange('informe', e.target.value)}
                     placeholder="Información adicional del INVI..."
-                    rows={6}
+                    rows={4}
                     className="mt-2"
                   />
                 </div>

@@ -81,6 +81,7 @@ model Resident {
   fechaNacimiento   DateTime?
   noPersonas        Int?
   discapacidad      Boolean  @default(false)
+  noPersonasDiscapacitadas Int? @default(0)
   profilePhoto      String?
   
   // Documentos PDF
@@ -96,8 +97,8 @@ model Resident {
   updatedAt         DateTime @updatedAt
 
   // Datos de ubicación
-  buildingId   String
-  apartmentId  String
+  buildingId   String?
+  apartmentId  String?
 
   // Datos financieros
   deudaActual     Float @default(0.00)
@@ -107,8 +108,8 @@ model Resident {
   informe String?
 
   // Relaciones
-  building   Building   @relation(fields: [buildingId], references: [id])
-  apartment  Apartment  @relation(fields: [apartmentId], references: [id])
+  building   Building?   @relation(fields: [buildingId], references: [id], onDelete: SetNull)
+  apartment  Apartment?  @relation(fields: [apartmentId], references: [id], onDelete: SetNull)
   createdBy  User       @relation(fields: [createdById], references: [id])
   createdById String
 
