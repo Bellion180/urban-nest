@@ -119,7 +119,7 @@ export const SeleccionNivel = () => {
             <div className="text-center">
               <p className="text-red-600 mb-4">{error}</p>
               <Button onClick={() => navigate('/dashboard')} variant="outline">
-                Volver al Dashboard
+                Volver al inicio
               </Button>
             </div>
           </div>
@@ -137,7 +137,7 @@ export const SeleccionNivel = () => {
             <div className="text-center">
               <p className="text-muted-foreground mb-4">No se encontró el edificio</p>
               <Button onClick={() => navigate('/dashboard')} variant="outline">
-                Volver al Dashboard
+                Volver al inicio
               </Button>
             </div>
           </div>
@@ -169,7 +169,7 @@ export const SeleccionNivel = () => {
               className="border-tlahuacali-red text-tlahuacali-red hover:bg-tlahuacali-red hover:text-white text-sm sm:text-base"
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
-              <span className="hidden sm:inline">Volver al Dashboard</span>
+              <span className="hidden sm:inline">Volver al inicio</span>
               <span className="sm:hidden">Volver</span>
             </Button>
           </div>

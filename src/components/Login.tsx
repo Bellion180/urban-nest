@@ -102,36 +102,6 @@ const Login = () => {
                 {isLoading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
               </Button>
             </form>
-            
-            <div className="mt-4 text-center">
-              <Button
-                variant="link"
-                onClick={() => navigate('/forgot-password')}
-                className="text-tlahuacali-red hover:text-tlahuacali-red/80 text-xs sm:text-sm p-0"
-              >
-                ¿Olvidaste tu contraseña?
-              </Button>
-            </div>
-            
-            {/* Credentials Info */}
-            <div className="mt-6 p-3 sm:p-4 bg-muted rounded-lg">
-              <h3 className="text-xs sm:text-sm font-semibold text-foreground mb-2">
-                Credenciales de acceso:
-              </h3>
-              <div className="space-y-2 text-xs text-muted-foreground">
-                <div>
-                  <span className="font-medium block">Usuarios registrados:</span>
-                  <div className="flex flex-col sm:flex-row sm:justify-between mt-1">
-                    <span className="font-medium">Admin:</span>
-                    <span>admin@urbannest.com / admin123</span>
-                  </div>
-                  <div className="flex flex-col sm:flex-row sm:justify-between">
-                    <span className="font-medium">Usuario:</span>
-                    <span>user@urbannest.com / user123</span>
-                  </div>
-                </div>
-              </div>
-            </div>
           </CardContent>
         </Card>
       </div>
