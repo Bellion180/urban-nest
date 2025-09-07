@@ -6,19 +6,39 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Inicializando base de datos Urban Nest...');
 
-  // Verificar si ya hay usuarios
-  const existingUsers = await prisma.user.count();
-  if (existingUsers > 0) {
-    console.log('📊 Base de datos ya tiene usuarios. Omitiendo seed.');
-    console.log(`👥 Usuarios existentes: ${existingUsers}`);
-    return;
+  // Verificar argumentos de línea de comandos
+  const forceReset = process.argv.includes('--force') || process.argv.includes('-f');
+
+  if (forceReset) {
+    console.log('🔄 Modo force activado - limpiando base de datos...');
+    
+    // Eliminar datos en orden correcto debido a las relaciones
+    await prisma.info_Tlaxilacalli.deleteMany();
+    await prisma.iNVI.deleteMany();
+    await prisma.info_Financiero.deleteMany();
+    await prisma.financieros.deleteMany();
+    await prisma.companeros.deleteMany();
+    await prisma.departamentos.deleteMany();
+    await prisma.niveles.deleteMany();
+    await prisma.torres.deleteMany();
+    await prisma.user.deleteMany();
+    
+    console.log('🗑️ Base de datos limpiada');
+  } else {
+    // Verificar si ya hay usuarios
+    const existingUsers = await prisma.user.count();
+    if (existingUsers > 0) {
+      console.log('📊 Base de datos ya tiene usuarios. Omitiendo seed.');
+      console.log(`👥 Usuarios existentes: ${existingUsers}`);
+      console.log('💡 Usa --force para reinicializar la base de datos');
+      return;
+    }
   }
 
   console.log('🔧 Creando usuarios iniciales...');
 
   // Hashear las contraseñas
   const adminPassword = await bcrypt.hash('admin123', 10);
-  const userPassword = await bcrypt.hash('user123', 10);
   const residentPassword = await bcrypt.hash('resident123', 10);
 
   // Crear usuarios
@@ -31,6 +51,7 @@ async function main() {
     }
   });
 
+<<<<<<< HEAD
   const user = await prisma.user.create({
     data: {
       email: 'user@urbannest.com',
@@ -40,6 +61,8 @@ async function main() {
     }
   });
 
+=======
+>>>>>>> f1590a7 (nueva base)
   const resident = await prisma.user.create({
     data: {
       email: 'resident@urbannest.com',
@@ -51,78 +74,223 @@ async function main() {
 
   console.log('✅ Usuarios creados:');
   console.log('👑 Admin:', admin.email);
-  console.log('👤 Usuario:', user.email);
   console.log('🏠 Residente:', resident.email);
 
   // Crear datos de ejemplo
-  await createSampleBuildings();
+  await createSampleData(admin.id);
+  
   
   console.log('\n📧 Credenciales de acceso:');
   console.log('admin@urbannest.com / admin123');
-  console.log('user@urbannest.com / user123');
   console.log('resident@urbannest.com / resident123');
   console.log('\n🚀 Base de datos inicializada correctamente!');
 }
 
-async function createSampleBuildings() {
-  console.log('🏢 Creando edificios de ejemplo...');
+async function createSampleData(adminId) {
+  console.log('🏢 Creando torres de ejemplo...');
   
   try {
-    const building = await prisma.building.create({
+    // Crear Torre A
+    const torreA = await prisma.torres.create({
       data: {
-        name: 'Torre Residencial Demo',
-        description: 'Edificio de ejemplo para demonstración del sistema Urban Nest',
-        image: '/placeholder.svg'
+        letra: 'A',
+        descripcion: 'Torre Residencial A'
       }
     });
 
-    console.log('🏢 Edificio de ejemplo creado:', building.name);
+    // Crear Torre B
+    const torreB = await prisma.torres.create({
+      data: {
+        letra: 'B',
+        descripcion: 'Torre Residencial B'
+      }
+    });
 
-    // Crear algunos pisos de ejemplo
-    const floors = [];
+    console.log('🏢 Torres creadas:', torreA.letra, torreB.letra);
+
+    // Crear niveles para Torre A (3 pisos)
+    const nivelesA = [];
     for (let i = 1; i <= 3; i++) {
-      const floor = await prisma.floor.create({
+      const nivel = await prisma.niveles.create({
         data: {
-          number: i,
-          name: i === 1 ? 'Planta Baja' : `Piso ${i}`,
-          buildingId: building.id
+          numero: i,
+          nombre: i === 1 ? 'Planta Baja' : `Piso ${i}`,
+          id_torre: torreA.id_torre
         }
       });
-      floors.push(floor);
+      nivelesA.push(nivel);
     }
 
-    console.log(`🏗️ ${floors.length} pisos creados para el edificio demo`);
+    // Crear niveles para Torre B (2 pisos)
+    const nivelesB = [];
+    for (let i = 1; i <= 2; i++) {
+      const nivel = await prisma.niveles.create({
+        data: {
+          numero: i,
+          nombre: i === 1 ? 'Planta Baja' : `Piso ${i}`,
+          id_torre: torreB.id_torre
+        }
+      });
+      nivelesB.push(nivel);
+    }
 
-    // Crear algunos residentes de ejemplo
-    const residents = [
+    console.log(`🏗️ Niveles creados: ${nivelesA.length} para Torre A, ${nivelesB.length} para Torre B`);
+
+    // Crear departamentos para Torre A - Primer piso
+    const departamentosA1 = [];
+    const apartmentNumbers1 = ['101', '102', '103'];
+    
+    for (const aptNum of apartmentNumbers1) {
+      const depto = await prisma.departamentos.create({
+        data: {
+          nombre: `Departamento ${aptNum}`,
+          descripcion: `Apartamento ${aptNum}`,
+          id_torre: torreA.id_torre,
+          id_nivel: nivelesA[0].id_nivel  // Primer piso
+        }
+      });
+      departamentosA1.push(depto);
+    }
+
+    // Crear departamentos para Torre A - Segundo piso
+    const departamentosA2 = [];
+    const apartmentNumbers2 = ['201', '202'];
+    
+    for (const aptNum of apartmentNumbers2) {
+      const depto = await prisma.departamentos.create({
+        data: {
+          nombre: `Departamento ${aptNum}`,
+          descripcion: `Apartamento ${aptNum}`,
+          id_torre: torreA.id_torre,
+          id_nivel: nivelesA[1].id_nivel  // Segundo piso
+        }
+      });
+      departamentosA2.push(depto);
+    }
+
+    // Crear departamentos para Torre A - Tercer piso
+    const departamentosA3 = [];
+    const apartmentNumbers3 = ['301'];
+    
+    for (const aptNum of apartmentNumbers3) {
+      const depto = await prisma.departamentos.create({
+        data: {
+          nombre: `Departamento ${aptNum}`,
+          descripcion: `Apartamento ${aptNum}`,
+          id_torre: torreA.id_torre,
+          id_nivel: nivelesA[2].id_nivel  // Tercer piso
+        }
+      });
+      departamentosA3.push(depto);
+    }
+
+    // Crear departamentos para Torre B - Primer piso
+    const departamentosB1 = [];
+    const apartmentNumbersB1 = ['101', '102'];
+    
+    for (const aptNum of apartmentNumbersB1) {
+      const depto = await prisma.departamentos.create({
+        data: {
+          nombre: `Departamento ${aptNum}`,
+          descripcion: `Apartamento ${aptNum}`,
+          id_torre: torreB.id_torre,
+          id_nivel: nivelesB[0].id_nivel  // Primer piso
+        }
+      });
+      departamentosB1.push(depto);
+    }
+
+    // Crear departamentos para Torre B - Segundo piso
+    const departamentosB2 = [];
+    const apartmentNumbersB2 = ['201', '202'];
+    
+    for (const aptNum of apartmentNumbersB2) {
+      const depto = await prisma.departamentos.create({
+        data: {
+          nombre: `Departamento ${aptNum}`,
+          descripcion: `Apartamento ${aptNum}`,
+          id_torre: torreB.id_torre,
+          id_nivel: nivelesB[1].id_nivel  // Segundo piso
+        }
+      });
+      departamentosB2.push(depto);
+    }
+
+    const allDepartamentos = [...departamentosA1, ...departamentosA2, ...departamentosA3, ...departamentosB1, ...departamentosB2];
+    console.log(`🏠 Departamentos creados: ${allDepartamentos.length} total`);
+
+    // Crear compañeros (residentes) de ejemplo
+    const compañeros = [
       {
-        name: 'Juan Pérez',
-        email: 'juan.perez@email.com',
-        phone: '+1234567890',
-        apartment: '101',
-        buildingId: building.id,
-        userId: null,
-        status: 'ACTIVO'
+        nombre: 'Juan',
+        apellidos: 'Pérez González',
+        fecha_nacimiento: new Date('1985-03-15'),
+        no_personas: 3,
+        id_departamento: departamentosA1[0].id_departamento, // 101 Torre A
+        createdById: adminId
       },
       {
-        name: 'María García',
-        email: 'maria.garcia@email.com', 
-        phone: '+1234567891',
-        apartment: '201',
-        buildingId: building.id,
-        userId: null,
-        status: 'ACTIVO'
+        nombre: 'María',
+        apellidos: 'García López',
+        fecha_nacimiento: new Date('1990-07-22'),
+        no_personas: 2,
+        id_departamento: departamentosA1[1].id_departamento, // 102 Torre A
+        createdById: adminId
+      },
+      {
+        nombre: 'Carlos',
+        apellidos: 'Rodríguez Martín',
+        fecha_nacimiento: new Date('1982-11-08'),
+        no_personas: 4,
+        id_departamento: departamentosA2[0].id_departamento, // 201 Torre A
+        createdById: adminId
+      },
+      {
+        nombre: 'Ana',
+        apellidos: 'Fernández Silva',
+        fecha_nacimiento: new Date('1988-05-12'),
+        no_personas: 1,
+        id_departamento: departamentosB2[0].id_departamento, // 201 Torre B
+        createdById: adminId
       }
     ];
 
-    for (const residentData of residents) {
-      await prisma.resident.create({ data: residentData });
+    for (const companeroData of compañeros) {
+      const companero = await prisma.companeros.create({ 
+        data: companeroData,
+        include: {
+          departamento: {
+            include: {
+              torre: true,
+              nivel: true
+            }
+          }
+        }
+      });
+
+      // Crear información financiera básica
+      await prisma.info_Financiero.create({
+        data: {
+          excelente: 'SI',
+          aport: '1000',
+          deuda: '0',
+          estacionamiento: 'NO',
+          aportacion: '500',
+          aportacion_deuda: '0',
+          apoyo_renta: 'NO',
+          comentarios: 'Residente modelo',
+          id_companeros: companero.id_companero
+        }
+      });
+
+      console.log(`� Compañero creado: ${companero.nombre} ${companero.apellidos} - Torre ${companero.departamento?.torre?.letra} Depto ${companero.departamento?.no_departamento}`);
     }
 
-    console.log(`👥 ${residents.length} residentes de ejemplo creados`);
+    console.log(`👥 ${compañeros.length} compañeros de ejemplo creados con información financiera`);
 
   } catch (error) {
-    console.log('⚠️ Error creando datos de ejemplo (esto es normal si el schema no tiene todas las tablas):', error.message);
+    console.error('⚠️ Error creando datos de ejemplo:', error);
+    throw error;
   }
 }
 

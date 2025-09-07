@@ -1,23 +1,23 @@
-// Test del endpoint más simple
-console.log('🧪 Test muy simple...');
+// Test ultra simple para verificar ruta sin auth
+import fetch from 'node-fetch';
 
-async function testVerySimple() {
+async function testSimpleRoute() {
   try {
-    console.log('🔍 Probando PUT /api/residents/test-simple');
-    const response = await fetch('http://localhost:3001/api/residents/test-simple', {
-      method: 'PUT'
+    console.log('� Probando ruta sin auth...');
+    
+    const response = await fetch('http://localhost:3001/api/companeros/building/test/floor/1', {
+      method: 'GET',
     });
-    console.log('📊 Status:', response.status);
-    if (response.ok) {
-      const data = await response.json();
-      console.log('✅ Respuesta:', data.message);
-    } else {
-      const error = await response.text();
-      console.log('❌ Error:', error);
-    }
+    
+    console.log(`Status: ${response.status}`);
+    console.log(`Status Text: ${response.statusText}`);
+    
+    const text = await response.text();
+    console.log(`Response: ${text.substring(0, 200)}...`);
+    
   } catch (error) {
-    console.error('❌ Error en test:', error.message);
+    console.error('❌ Error:', error.message);
   }
 }
 
-testVerySimple();
+testSimpleRoute();

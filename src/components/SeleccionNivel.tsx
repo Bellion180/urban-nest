@@ -42,8 +42,15 @@ export const SeleccionNivel = () => {
       
       try {
         setLoading(true);
-        const data = await buildingService.getById(buildingId);
-        setBuildingData(data);
+        // Usar getAll y filtrar por ID ya que sabemos que funciona
+        const allBuildings = await buildingService.getAll();
+        const building = allBuildings.find((b: any) => b.id === buildingId);
+        
+        if (building) {
+          setBuildingData(building);
+        } else {
+          setError('Edificio no encontrado');
+        }
         
         // Cargar imágenes de pisos
         await loadFloorImages(buildingId);
@@ -64,17 +71,25 @@ export const SeleccionNivel = () => {
   const loadFloorImages = async (buildingId: string) => {
     try {
       console.log('Cargando imágenes de pisos para edificio:', buildingId);
-      const data = await buildingService.getFloorImages(buildingId);
+      const data = await buildingService.getFloorImages();
       console.log('Imágenes de pisos obtenidas:', data);
       
+      // En la nueva estructura, las imágenes de piso no están soportadas
+      // Mantener el estado como un objeto vacío
       const imagesMap: {[floorNumber: number]: string} = {};
-      data.floorImages.forEach((floorImg: any) => {
-        imagesMap[floorImg.pisoNumber] = `http://localhost:3001${floorImg.imageUrl}`;
-      });
+      
+      // Si hay datos y tienen la estructura esperada (legacy)
+      if (data && typeof data === 'object' && 'floorImages' in data && Array.isArray((data as any).floorImages)) {
+        (data as any).floorImages.forEach((floorImg: any) => {
+          imagesMap[floorImg.pisoNumber] = `http://localhost:3001${floorImg.imageUrl}`;
+        });
+      }
       
       setFloorImages(imagesMap);
     } catch (error) {
       console.error('Error al cargar imágenes de pisos:', error);
+      // En caso de error, establecer un objeto vacío
+      setFloorImages({});
     }
   };
 
@@ -82,6 +97,11 @@ export const SeleccionNivel = () => {
     setSelectedNivel(nivelId);
     setSelectedFloorNumber(floorNumber);
     console.log(`Nivel seleccionado: ${nivelId} del edificio: ${buildingId}, piso: ${floorNumber}`);
+    
+    // Navegar directamente a los residentes del piso
+    if (buildingId) {
+      navigate(`/building/${buildingId}/floor/${floorNumber}/residents`);
+    }
   };
 
   const handleBackToDashboard = () => {

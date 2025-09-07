@@ -52,7 +52,7 @@ export const FloorResidents = () => {
         // Cargar datos del edificio y residentes en paralelo
         const [buildingResponse, residentsResponse] = await Promise.all([
           buildingService.getById(buildingId),
-          residentService.getByFloor(buildingId, floorNumber)
+          residentService.getByBuildingAndFloor(buildingId, floorNumber)
         ]);
         
         setBuildingData(buildingResponse);

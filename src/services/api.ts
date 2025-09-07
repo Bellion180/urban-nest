@@ -134,6 +134,12 @@ export const buildingService = {
     return response.json();
   },
 
+  // Obtener una torre específica por ID con sus niveles
+  getById: async (id: string) => {
+    const response = await authenticatedFetch(`/torres/details/${id}`);
+    return response.json();
+  },
+
   // Crear nueva torre (mapeado como edificio)
   create: async (buildingData: {
     name: string;
@@ -155,9 +161,19 @@ export const buildingService = {
     
     const torre = await torreResponse.json();
     
-    // Si se proporcionaron pisos con apartamentos, crear los departamentos
+    // Si se proporcionaron pisos, crear los niveles
     if (buildingData.floors && buildingData.floors.length > 0) {
       for (const floor of buildingData.floors) {
+        // Crear el nivel
+        await authenticatedFetch(`/niveles/torre/${torre.torre.id_torre}`, {
+          method: 'POST',
+          body: JSON.stringify({
+            numero: floor.number,
+            nombre: floor.name
+          }),
+        });
+        
+        // Crear los departamentos
         for (const apartmentNumber of floor.apartments) {
           await authenticatedFetch(`/torres/${torre.torre.id_torre}/departamentos`, {
             method: 'POST',
@@ -201,13 +217,38 @@ export const buildingService = {
   },
   uploadFloorImage: async () => ({ message: 'Floor images not supported in new structure' }),
   getFloorImages: async () => ([]),
-  getById: async (id: string) => {
-    const response = await authenticatedFetch(`/torres/${id}/departamentos`);
-    return response.json();
-  },
   update: async (id: string, updateData: any) => {
     // No hay endpoint de actualización directo, devolver estructura mínima
     return { message: 'Update not implemented in new structure' };
+  }
+};
+
+// ===== SERVICIOS DE NIVELES =====
+export const floorService = {
+  // Obtener niveles de una torre (mapeado como floors para compatibilidad)
+  getByBuilding: async (buildingId: string) => {
+    const response = await authenticatedFetch(`/niveles/torre/${buildingId}`);
+    return response.json();
+  },
+
+  // Crear nuevo nivel
+  create: async (buildingId: string, floorData: { number: number; name: string }) => {
+    const response = await authenticatedFetch(`/niveles/torre/${buildingId}`, {
+      method: 'POST',
+      body: JSON.stringify({
+        numero: floorData.number,
+        nombre: floorData.name
+      }),
+    });
+    return response.json();
+  },
+
+  // Eliminar nivel
+  delete: async (floorId: string) => {
+    const response = await authenticatedFetch(`/niveles/${floorId}`, {
+      method: 'DELETE',
+    });
+    return response.json();
   }
 };
 
@@ -340,6 +381,12 @@ export const residentService = {
       method: 'POST',
       body: JSON.stringify(paymentData),
     });
+    return response.json();
+  },
+
+  // Obtener residentes por edificio y nivel
+  getByBuildingAndFloor: async (buildingId: string, floorNumber: string) => {
+    const response = await authenticatedFetch(`/companeros/building/${buildingId}/floor/${floorNumber}`);
     return response.json();
   },
 

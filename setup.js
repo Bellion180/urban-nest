@@ -80,7 +80,6 @@ async function main() {
   
   console.log('🔑 Credenciales de prueba:');
   console.log('   admin@urbannest.com / admin123 (Administrador)');
-  console.log('   user@urbannest.com / user123 (Usuario)');
   console.log('   resident@urbannest.com / resident123 (Residente)\n');
   
   console.log('🛠️ Scripts útiles:');

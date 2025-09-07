@@ -18,15 +18,21 @@ interface BuildingData {
   name: string;
   description: string;
   image: string;
-  floors: {
+  floors?: {
     id: string;
     name: string;
     number: number;
     apartments: Array<string>;
+    _count?: {
+      residents: number;
+    };
   }[];
-  totalApartments: number;
-  totalResidents: number;
+  totalApartments?: number;
+  totalResidents?: number;
   totalFloors?: number;
+  _count?: {
+    residents: number;
+  };
 }
 
 const Dashboard = () => {
@@ -47,6 +53,36 @@ const Dashboard = () => {
       
       const buildingsData = await buildingService.getAll();
       console.log('Dashboard: Edificios recibidos:', buildingsData);
+      
+      // Log detallado para verificar estructura de floors/niveles
+      buildingsData.forEach((building: any, index: number) => {
+        console.log(`Dashboard: Edificio ${index + 1} (${building.name}):`, {
+          id: building.id,
+          name: building.name,
+          description: building.description,
+          floors: building.floors,
+          floorsLength: building.floors?.length,
+          firstFloor: building.floors?.[0],
+          _count: building._count,
+          totalResidents: building.totalResidents
+        });
+        
+        // Log específico de floors si existen
+        if (building.floors && building.floors.length > 0) {
+          console.log(`  → Floors de ${building.name}:`, building.floors);
+          building.floors.forEach((floor: any, floorIndex: number) => {
+            console.log(`    Floor ${floorIndex + 1}:`, {
+              id: floor.id,
+              name: floor.name,
+              number: floor.number,
+              apartments: floor.apartments,
+              _count: floor._count
+            });
+          });
+        } else {
+          console.log(`  → ${building.name} NO tiene floors o está vacío`);
+        }
+      });
       
       setBuildings(buildingsData);
     } catch (error) {
@@ -97,6 +133,11 @@ const Dashboard = () => {
     );
   }
 
+  // Logs para debugging en render
+  console.log('Dashboard RENDER: buildings state:', buildings);
+  console.log('Dashboard RENDER: buildings length:', buildings.length);
+  console.log('Dashboard RENDER: buildings first item:', buildings[0]);
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -139,18 +180,23 @@ const Dashboard = () => {
                   <div className="flex items-center space-x-3 text-xs text-muted-foreground">
                     <div className="flex items-center space-x-1">
                       <Building className="h-3 w-3" />
-                      <span>{building.floors.length} pisos</span>
+                      <span>{building.floors?.length || 0} pisos</span>
                     </div>
                     <div className="flex items-center space-x-1">
                       <Users className="h-3 w-3" />
-                      <span>{building.totalResidents} residentes</span>
+                      <span>{building.totalResidents || building._count?.residents || 0} residentes</span>
                     </div>
                   </div>
                 </div>
                 <div className="text-xs text-muted-foreground mb-4">
                   <div className="flex items-center space-x-1">
                     <span>Pisos disponibles:</span>
-                    <span className="font-medium">{building.floors.map(f => f.number).join(', ')}</span>
+                    <span className="font-medium">
+                      {building.floors?.length > 0 
+                        ? building.floors.map((f: any) => f.number).join(', ')
+                        : 'Sin pisos definidos'
+                      }
+                    </span>
                   </div>
                 </div>
                 
@@ -208,18 +254,23 @@ const Dashboard = () => {
                         <div className="flex items-center space-x-4 text-sm text-muted-foreground">
                           <div className="flex items-center space-x-1">
                             <Building className="h-4 w-4" />
-                            <span>{building.floors.length} pisos</span>
+                            <span>{building.floors?.length || 0} pisos</span>
                           </div>
                           <div className="flex items-center space-x-1">
                             <Users className="h-4 w-4" />
-                            <span>{building.totalResidents} residentes</span>
+                            <span>{building.totalResidents || building._count?.residents || 0} residentes</span>
                           </div>
                         </div>
                       </div>
                       <div className="text-sm text-muted-foreground mb-4">
                         <div className="flex items-center space-x-1">
                           <span>Pisos disponibles:</span>
-                          <span className="font-medium">{building.floors.map(f => f.number).join(', ')}</span>
+                          <span className="font-medium">
+                            {building.floors?.length > 0 
+                              ? building.floors.map((f: any) => f.number).join(', ')
+                              : 'Sin pisos definidos'
+                            }
+                          </span>
                         </div>
                       </div>
                       
