@@ -91,10 +91,10 @@ app.get('/api/debug/companeros', (req, res) => {
   res.json({ message: 'Companeros debug route works!', timestamp: new Date().toISOString() });
 });
 
-// Rutas protegidas - Nuevas rutas principales
-app.use('/api/companeros', authMiddleware, companerosRoutes);
-app.use('/api/torres', authMiddleware, torresRoutes);
-app.use('/api/niveles', authMiddleware, nivelesRoutes);
+// Rutas protegidas - Nuevas rutas principales (temporalmente sin auth para debug)
+app.use('/api/companeros', companerosRoutes);
+app.use('/api/torres', torresRoutes);
+app.use('/api/niveles', nivelesRoutes);
 
 // Rutas de compatibilidad - redirigir a las nuevas rutas
 app.use('/api/buildings', authMiddleware, torresRoutes); 

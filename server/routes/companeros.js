@@ -16,11 +16,7 @@ router.get('/', authMiddleware, async (req, res) => {
         departamento: {
           include: {
             torre: true,
-            niveles: {
-              include: {
-                nivel: true
-              }
-            }
+            nivel: true
           }
         },
         info_financiero: true,
@@ -44,9 +40,9 @@ router.get('/', authMiddleware, async (req, res) => {
     // Mapear los datos a la estructura anterior para compatibilidad
     const mappedResidents = companeros.map(companero => {
       // Obtener información del nivel del departamento
-      const nivelInfo = companero.departamento?.niveles?.[0]?.nivel;
+      const nivelInfo = companero.departamento?.nivel;
       
-      console.log(`🔧 Mapping companero: ${companero.nombre} - Torre: ${companero.departamento?.torre?.letra || 'SIN TORRE'} - Depto: ${companero.departamento?.no_departamento || 'SIN DEPTO'} - Nivel: ${nivelInfo?.numero || 'SIN NIVEL'}`);
+      console.log(`🔧 Mapping companero: ${companero.nombre} - Torre: ${companero.departamento?.torre?.letra || 'SIN TORRE'} - Depto: ${companero.departamento?.nombre || 'SIN DEPTO'} - Nivel: ${nivelInfo?.numero || 'SIN NIVEL'}`);
       
       return {
         id: companero.id_companero,
@@ -92,7 +88,7 @@ router.get('/', authMiddleware, async (req, res) => {
         } : null,
         apartment: companero.departamento ? {
           id: companero.departamento.id_departamento,
-          number: companero.departamento.no_departamento,
+          number: companero.departamento.nombre,
           floor: nivelInfo ? {
             id: nivelInfo.id_nivel,
             name: nivelInfo.nombre || `Nivel ${nivelInfo.numero}`,
@@ -108,7 +104,7 @@ router.get('/', authMiddleware, async (req, res) => {
         piso: nivelInfo?.numero || 1,
         pisoNombre: nivelInfo?.nombre || `Nivel ${nivelInfo?.numero || 1}`,
         edificio: companero.departamento?.torre?.letra || 'Sin edificio',
-        apartamento: companero.departamento?.no_departamento || 'Sin departamento'
+        apartamento: companero.departamento?.nombre || 'Sin departamento'
       };
     });
 
@@ -137,12 +133,8 @@ router.get('/building/:buildingId/floor/:floorNumber', async (req, res) => {
       where: {
         departamento: {
           id_torre: buildingId,
-          niveles: {
-            some: {
-              nivel: {
-                numero: parseInt(floorNumber)
-              }
-            }
+          nivel: {
+            numero: parseInt(floorNumber)
           }
         }
       },
@@ -150,11 +142,7 @@ router.get('/building/:buildingId/floor/:floorNumber', async (req, res) => {
         departamento: {
           include: {
             torre: true,
-            niveles: {
-              include: {
-                nivel: true
-              }
-            }
+            nivel: true
           }
         },
         info_financiero: true,
@@ -175,7 +163,7 @@ router.get('/building/:buildingId/floor/:floorNumber', async (req, res) => {
     
     // Mapear los datos igual que en el endpoint principal
     const mappedResidents = companeros.map(companero => {
-      const nivelInfo = companero.departamento?.niveles?.[0]?.nivel;
+      const nivelInfo = companero.departamento?.nivel;
       
       return {
         id: companero.id_companero,

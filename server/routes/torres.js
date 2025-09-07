@@ -21,30 +21,22 @@ router.get('/', authMiddleware, async (req, res) => {
           id_torre: id
         },
         include: {
-          departamentos: {
-            include: {
-              companeros: true,
-              niveles: {
-                include: {
-                  nivel: true
-                }
-              }
-            }
-          },
           niveles: {
             include: {
               departamentos: {
                 include: {
-                  departamento: {
-                    include: {
-                      companeros: true
-                    }
-                  }
+                  companeros: true
                 }
               }
             },
             orderBy: {
               numero: 'asc'
+            }
+          },
+          departamentos: {
+            include: {
+              companeros: true,
+              nivel: true
             }
           }
         }
@@ -63,7 +55,7 @@ router.get('/', authMiddleware, async (req, res) => {
       const mappedBuilding = {
         id: torre.id_torre,
         name: torre.letra,
-        description: torre.nivel,
+        description: torre.descripcion || `Torre ${torre.letra}`,
         image: null,
         createdAt: torre.createdAt,
         updatedAt: torre.updatedAt,
@@ -74,13 +66,18 @@ router.get('/', authMiddleware, async (req, res) => {
           name: nivel.nombre,
           number: nivel.numero,
           buildingId: torre.id_torre,
-          apartments: nivel.departamentos.map(rel => ({
-            id: rel.departamento.id_departamento,
-            number: rel.departamento.no_departamento,
-            residents: rel.departamento.companeros
+          apartments: nivel.departamentos.map(dept => ({
+            id: dept.id_departamento,
+            number: dept.nombre,
+            residents: dept.companeros.map(companero => ({
+              id: companero.id_companero,
+              name: companero.nombre,
+              lastName: companero.apellidos,
+              status: companero.estatus
+            }))
           })),
           _count: {
-            residents: nivel.departamentos.reduce((total, rel) => total + rel.departamento.companeros.length, 0)
+            residents: nivel.departamentos.reduce((total, dept) => total + dept.companeros.length, 0)
           }
         })),
         _count: {
@@ -94,30 +91,22 @@ router.get('/', authMiddleware, async (req, res) => {
     // Si no se proporciona ID, obtener todas las torres (comportamiento existente)
     const torres = await prisma.torres.findMany({
       include: {
-        departamentos: {
-          include: {
-            companeros: true,
-            niveles: {
-              include: {
-                nivel: true
-              }
-            }
-          }
-        },
         niveles: {
           include: {
             departamentos: {
               include: {
-                departamento: {
-                  include: {
-                    companeros: true
-                  }
-                }
+                companeros: true
               }
             }
           },
           orderBy: {
             numero: 'asc'
+          }
+        },
+        departamentos: {
+          include: {
+            companeros: true,
+            nivel: true
           }
         }
       },
@@ -126,15 +115,19 @@ router.get('/', authMiddleware, async (req, res) => {
       }
     });
 
+<<<<<<< HEAD
     if (!torres || torres.length === 0) {
       return res.json([]);
     }
+=======
+    console.log(`📋 Torres encontradas: ${torres.length}`);
+>>>>>>> a80e9ec (ya merito ahora si papa)
 
     // Mapear para compatibilidad con estructura anterior pero incluyendo niveles
     const mappedBuildings = torres.map(torre => ({
       id: torre.id_torre,
       name: torre.letra,
-      description: torre.nivel,
+      description: torre.descripcion || `Torre ${torre.letra}`,
       image: null,
       createdAt: torre.createdAt,
       updatedAt: torre.updatedAt,
@@ -144,9 +137,15 @@ router.get('/', authMiddleware, async (req, res) => {
         name: nivel.nombre,
         number: nivel.numero,
         buildingId: torre.id_torre,
+<<<<<<< HEAD
         apartments: (nivel.departamentos || []).map(rel => rel.departamento?.no_departamento || null),
         _count: {
           residents: (nivel.departamentos || []).reduce((total, rel) => total + (rel.departamento?.companeros?.length || 0), 0)
+=======
+        apartments: nivel.departamentos.map(dept => dept.nombre),
+        _count: {
+          residents: nivel.departamentos.reduce((total, dept) => total + dept.companeros.length, 0)
+>>>>>>> a80e9ec (ya merito ahora si papa)
         }
       })),
       _count: {
@@ -315,30 +314,22 @@ router.get('/details/:id', async (req, res) => {
         id_torre: id
       },
       include: {
-        departamentos: {
-          include: {
-            companeros: true,
-            niveles: {
-              include: {
-                nivel: true
-              }
-            }
-          }
-        },
         niveles: {
           include: {
             departamentos: {
               include: {
-                departamento: {
-                  include: {
-                    companeros: true
-                  }
-                }
+                companeros: true
               }
             }
           },
           orderBy: {
             numero: 'asc'
+          }
+        },
+        departamentos: {
+          include: {
+            companeros: true,
+            nivel: true
           }
         }
       }
@@ -357,7 +348,7 @@ router.get('/details/:id', async (req, res) => {
     const mappedBuilding = {
       id: torre.id_torre,
       name: torre.letra,
-      description: torre.nivel,
+      description: torre.descripcion || `Torre ${torre.letra}`,
       image: null,
       createdAt: torre.createdAt,
       updatedAt: torre.updatedAt,
@@ -368,13 +359,18 @@ router.get('/details/:id', async (req, res) => {
         name: nivel.nombre,
         number: nivel.numero,
         buildingId: torre.id_torre,
-        apartments: nivel.departamentos.map(rel => ({
-          id: rel.departamento.id_departamento,
-          number: rel.departamento.no_departamento,
-          residents: rel.departamento.companeros
+        apartments: nivel.departamentos.map(dept => ({
+          id: dept.id_departamento,
+          number: dept.nombre,
+          residents: dept.companeros.map(companero => ({
+            id: companero.id_companero,
+            name: companero.nombre,
+            lastName: companero.apellidos,
+            status: companero.estatus
+          }))
         })),
         _count: {
-          residents: nivel.departamentos.reduce((total, rel) => total + rel.departamento.companeros.length, 0)
+          residents: nivel.departamentos.reduce((total, dept) => total + dept.companeros.length, 0)
         }
       })),
       _count: {
