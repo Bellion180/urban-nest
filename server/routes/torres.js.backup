@@ -115,16 +115,20 @@ router.get('/', authMiddleware, async (req, res) => {
       }
     });
 
+<<<<<<< HEAD
     if (!torres || torres.length === 0) {
       return res.json([]);
     }
+=======
+    console.log(`📋 Torres encontradas: ${torres.length}`);
+>>>>>>> a80e9ec (ya merito ahora si papa)
 
     // Mapear para compatibilidad con estructura anterior pero incluyendo niveles
     const mappedBuildings = torres.map(torre => ({
       id: torre.id_torre,
       name: torre.letra,
       description: torre.descripcion || `Torre ${torre.letra}`,
-      image: `/edificios/${torre.id_torre}/1757037853446.png`, // Ruta dinámica de imagen
+      image: null,
       createdAt: torre.createdAt,
       updatedAt: torre.updatedAt,
       // Mapear niveles como floors
@@ -133,9 +137,15 @@ router.get('/', authMiddleware, async (req, res) => {
         name: nivel.nombre,
         number: nivel.numero,
         buildingId: torre.id_torre,
+<<<<<<< HEAD
         apartments: (nivel.departamentos || []).map(rel => rel.departamento?.no_departamento || null),
         _count: {
           residents: (nivel.departamentos || []).reduce((total, rel) => total + (rel.departamento?.companeros?.length || 0), 0)
+=======
+        apartments: nivel.departamentos.map(dept => dept.nombre),
+        _count: {
+          residents: nivel.departamentos.reduce((total, dept) => total + dept.companeros.length, 0)
+>>>>>>> a80e9ec (ya merito ahora si papa)
         }
       })),
       _count: {
@@ -231,77 +241,6 @@ router.post('/:torreId/departamentos', async (req, res) => {
   }
 });
 
-// Obtener una torre específica por ID con detalles completos (DEBE IR ANTES de /:torreId/departamentos)
-console.log('🔧 Registrando ruta GET /details/:id');
-router.get('/details/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    console.log(`🔍 GET /torres/details/${id} - Buscando torre específica`);
-    console.log(`🔧 Endpoint /details/:id registrado y funcionando`);
-
-    const torre = await prisma.torres.findUnique({
-      where: {
-        id_torre: id
-      },
-      include: {
-        niveles: {
-          include: {
-            departamentos: {
-              include: {
-                companeros: true
-              }
-            }
-          },
-          orderBy: {
-            numero: 'asc'
-          }
-        },
-        departamentos: {
-          include: {
-            companeros: true,
-            nivel: true
-          }
-        }
-      }
-    });
-
-    console.log(`🔍 Torre encontrada:`, torre ? 'SÍ' : 'NO');
-    
-    if (!torre) {
-      console.log(`❌ Torre con ID ${id} no encontrada`);
-      return res.status(404).json({ error: 'Torre no encontrada' });
-    }
-
-    console.log(`✅ Torre ${torre.letra} encontrada, mapeando datos...`);
-
-    // Mapear niveles en la nueva estructura esperada por SeleccionNivel
-    const mappedBuilding = {
-      id: torre.id_torre,
-      name: torre.letra,
-      description: torre.descripcion || `Torre Residencial ${torre.letra}`,
-      address: `Torre ${torre.letra}`,
-      // Mapear niveles (no floors para ser consistente con la nueva estructura)
-      niveles: torre.niveles.map(nivel => ({
-        id_nivel: nivel.id_nivel,
-        numero_nivel: nivel.numero,
-        descripcion: nivel.nombre || `Nivel ${nivel.numero}`,
-        id_torre: torre.id_torre
-      }))
-    };
-
-    console.log(`📤 Enviando datos de torre:`, {
-      id: mappedBuilding.id,
-      name: mappedBuilding.name,
-      niveles_count: mappedBuilding.niveles.length
-    });
-
-    res.json(mappedBuilding);
-  } catch (error) {
-    console.error('Error al obtener torre:', error);
-    res.status(500).json({ error: 'Error interno del servidor' });
-  }
-});
-
 // Obtener departamentos de una torre
 router.get('/:torreId/departamentos', async (req, res) => {
   try {
@@ -360,6 +299,88 @@ router.delete('/:id', async (req, res) => {
     });
   } catch (error) {
     console.error('Error al eliminar torre:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// Obtener una torre específica por ID con detalles completos
+router.get('/details/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(`🔍 GET /torres/details/${id} - Buscando torre específica`);
+
+    const torre = await prisma.torres.findUnique({
+      where: {
+        id_torre: id
+      },
+      include: {
+        niveles: {
+          include: {
+            departamentos: {
+              include: {
+                companeros: true
+              }
+            }
+          },
+          orderBy: {
+            numero: 'asc'
+          }
+        },
+        departamentos: {
+          include: {
+            companeros: true,
+            nivel: true
+          }
+        }
+      }
+    });
+
+    console.log(`🔍 Torre encontrada:`, torre ? 'SÍ' : 'NO');
+    
+    if (!torre) {
+      console.log(`❌ Torre con ID ${id} no encontrada`);
+      return res.status(404).json({ error: 'Torre no encontrada' });
+    }
+
+    console.log(`✅ Torre ${torre.letra} encontrada, mapeando datos...`);
+
+    // Mapear para compatibilidad con estructura anterior pero incluyendo niveles
+    const mappedBuilding = {
+      id: torre.id_torre,
+      name: torre.letra,
+      description: torre.descripcion || `Torre ${torre.letra}`,
+      image: null,
+      createdAt: torre.createdAt,
+      updatedAt: torre.updatedAt,
+      address: `Torre ${torre.letra}`,
+      // Mapear niveles como floors
+      floors: torre.niveles.map(nivel => ({
+        id: nivel.id_nivel,
+        name: nivel.nombre,
+        number: nivel.numero,
+        buildingId: torre.id_torre,
+        apartments: nivel.departamentos.map(dept => ({
+          id: dept.id_departamento,
+          number: dept.nombre,
+          residents: dept.companeros.map(companero => ({
+            id: companero.id_companero,
+            name: companero.nombre,
+            lastName: companero.apellidos,
+            status: companero.estatus
+          }))
+        })),
+        _count: {
+          residents: nivel.departamentos.reduce((total, dept) => total + dept.companeros.length, 0)
+        }
+      })),
+      _count: {
+        residents: torre.departamentos.reduce((total, dept) => total + dept.companeros.length, 0)
+      }
+    };
+
+    res.json(mappedBuilding);
+  } catch (error) {
+    console.error('Error al obtener torre:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
