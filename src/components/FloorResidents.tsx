@@ -58,7 +58,7 @@ export const FloorResidents = () => {
         setBuildingData(buildingResponse);
         setResidents(residentsResponse);
         
-        console.log('Datos cargados:', { building: buildingResponse, residents: residentsResponse });
+
       } catch (err) {
         console.error('Error al cargar datos:', err);
         setError('Error al cargar los datos');
@@ -75,7 +75,6 @@ export const FloorResidents = () => {
   };
 
   const handleResidentClick = (resident: FloorResident) => {
-    console.log('FloorResidents: Resident data for modal:', resident);
     setSelectedResident(resident);
     setShowModal(true);
   };

@@ -35,16 +35,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const initAuth = async () => {
       const token = localStorage.getItem('authToken');
+      console.log('AuthContext: Inicializando autenticación, token encontrado:', !!token);
+      
       if (token) {
         try {
           console.log('Verificando token con el servidor...');
           const userData = await authService.verifyToken();
           setCurrentUser(userData.user);
-          console.log('Token verificado correctamente');
+          console.log('Token verificado correctamente, usuario:', userData.user);
         } catch (error) {
           console.error('Error al verificar token:', error);
+          console.log('AuthContext: Limpiando token inválido');
           authService.logout();
+          setCurrentUser(null);
         }
+      } else {
+        console.log('AuthContext: No hay token, usuario no autenticado');
+        setCurrentUser(null);
       }
       setLoading(false);
     };

@@ -357,15 +357,15 @@ const ResidentDetailModal: React.FC<ResidentDetailModalProps> = ({
                       <div className="space-y-4">
                         <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
                           <span className="font-medium">Deuda Actual</span>
-                          <span className={`text-lg font-bold ${resident.deudaActual > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                            ${resident.deudaActual.toLocaleString()}
+                          <span className={`text-lg font-bold ${(resident.deudaActual || 0) > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                            ${(resident.deudaActual || 0).toLocaleString()}
                           </span>
                         </div>
                         
                         <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
                           <span className="font-medium">Total Pagos Realizados</span>
                           <span className="text-lg font-bold text-green-600">
-                            ${resident.pagosRealizados.toLocaleString()}
+                            ${(resident.pagosRealizados || 0).toLocaleString()}
                           </span>
                         </div>
                         
@@ -400,7 +400,7 @@ const ResidentDetailModal: React.FC<ResidentDetailModalProps> = ({
                                   <span className="text-xs text-muted-foreground">{payment.description || payment.type}</span>
                                 </div>
                                 <span className="text-green-600 font-medium">
-                                  ${payment.amount.toLocaleString()}
+                                  ${(payment.amount || 0).toLocaleString()}
                                 </span>
                               </div>
                             ))

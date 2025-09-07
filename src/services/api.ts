@@ -144,48 +144,47 @@ export const buildingService = {
   create: async (buildingData: {
     name: string;
     description?: string;
+    image?: File;
     floors?: Array<{
       name: string;
       number: number;
       apartments: string[];
     }>;
+    floorImages?: (File | null)[];
   }) => {
-    // Crear la torre
-    const torreResponse = await authenticatedFetch('/torres', {
-      method: 'POST',
-      body: JSON.stringify({
-        letra: buildingData.name,
-        nivel: buildingData.description || 'Nivel 1'
-      }),
-    });
+    const formData = new FormData();
+    formData.append('name', buildingData.name);
+    formData.append('description', buildingData.description || '');
     
-    const torre = await torreResponse.json();
-    
-    // Si se proporcionaron pisos, crear los niveles
-    if (buildingData.floors && buildingData.floors.length > 0) {
-      for (const floor of buildingData.floors) {
-        // Crear el nivel
-        await authenticatedFetch(`/niveles/torre/${torre.torre.id_torre}`, {
-          method: 'POST',
-          body: JSON.stringify({
-            numero: floor.number,
-            nombre: floor.name
-          }),
-        });
-        
-        // Crear los departamentos
-        for (const apartmentNumber of floor.apartments) {
-          await authenticatedFetch(`/torres/${torre.torre.id_torre}/departamentos`, {
-            method: 'POST',
-            body: JSON.stringify({
-              no_departamento: apartmentNumber
-            }),
-          });
-        }
-      }
+    if (buildingData.image) {
+      formData.append('image', buildingData.image);
     }
     
-    return torre;
+    if (buildingData.floors) {
+      formData.append('floors', JSON.stringify(buildingData.floors));
+    }
+    
+    if (buildingData.floorImages) {
+      buildingData.floorImages.forEach((floorImage, index) => {
+        if (floorImage) {
+          formData.append(`floorImage_${index}`, floorImage);
+        }
+      });
+    }
+
+    const response = await fetch(`${API_BASE_URL}/buildings`, {
+      method: 'POST',
+      headers: {
+        ...(getAuthToken() && { Authorization: `Bearer ${getAuthToken()}` }),
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
   },
 
   // Eliminar torre
@@ -210,13 +209,43 @@ export const buildingService = {
   // Métodos mantenidos para compatibilidad
   addFloor: async () => ({ message: 'Floor concept not applicable in new structure' }),
   createWithImage: async (formData: FormData) => {
-    // Extraer datos del FormData
-    const name = formData.get('name') as string;
-    const description = formData.get('description') as string;
-    return buildingService.create({ name, description });
+    const response = await fetch(`${API_BASE_URL}/buildings`, {
+      method: 'POST',
+      headers: {
+        ...(getAuthToken() && { Authorization: `Bearer ${getAuthToken()}` }),
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
   },
-  uploadFloorImage: async () => ({ message: 'Floor images not supported in new structure' }),
-  getFloorImages: async () => ([]),
+  getFloorImages: async (buildingId: string) => {
+    const response = await authenticatedFetch(`/buildings/${buildingId}/pisos/imagenes`);
+    return response.json();
+  },
+
+  uploadFloorImage: async (buildingId: string, floorNumber: number, imageFile: File) => {
+    const formData = new FormData();
+    formData.append('image', imageFile);
+
+    const response = await fetch(`${API_BASE_URL}/buildings/${buildingId}/pisos/${floorNumber}/image`, {
+      method: 'POST',
+      headers: {
+        ...(getAuthToken() && { Authorization: `Bearer ${getAuthToken()}` }),
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  },
   update: async (id: string, updateData: any) => {
     // No hay endpoint de actualización directo, devolver estructura mínima
     return { message: 'Update not implemented in new structure' };

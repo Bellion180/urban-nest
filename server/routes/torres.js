@@ -1,10 +1,45 @@
 import express from 'express';
 import { prisma } from '../../src/lib/prisma.js';
 import { authMiddleware } from '../middleware/auth.js';
+import fs from 'fs';
+import path from 'path';
 
 const router = express.Router();
 
 console.log('🏠 Cargando rutas de torres...');
+
+// Función auxiliar para encontrar la imagen del edificio
+const findBuildingImage = (buildingId) => {
+  try {
+    const buildingDir = path.join('public', 'edificios', buildingId);
+    console.log(`🔍 Buscando imagen para edificio ${buildingId} en directorio:`, buildingDir);
+    
+    if (!fs.existsSync(buildingDir)) {
+      console.log(`❌ Directorio no existe: ${buildingDir}`);
+      return null;
+    }
+    
+    const files = fs.readdirSync(buildingDir);
+    console.log(`📁 Archivos encontrados en ${buildingId}:`, files);
+    
+    // Buscar archivos de imagen que no sean piso.jpg o perfil.jpg (que son específicos de pisos/residentes)
+    const imageFile = files.find(file => {
+      const ext = path.extname(file).toLowerCase();
+      const name = path.basename(file, ext).toLowerCase();
+      const isImage = ['.png', '.jpg', '.jpeg'].includes(ext);
+      const isNotSpecific = !name.includes('piso') && !name.includes('perfil');
+      console.log(`🔍 Evaluando archivo ${file}: ext=${ext}, name=${name}, isImage=${isImage}, isNotSpecific=${isNotSpecific}`);
+      return isImage && isNotSpecific;
+    });
+    
+    const result = imageFile ? `/edificios/${buildingId}/${imageFile}` : null;
+    console.log(`✅ Imagen encontrada para edificio ${buildingId}:`, result);
+    return result;
+  } catch (error) {
+    console.error(`❌ Error buscando imagen para edificio ${buildingId}:`, error);
+    return null;
+  }
+};
 
 // Obtener todas las torres o una específica por ID
 router.get('/', authMiddleware, async (req, res) => {
@@ -56,7 +91,7 @@ router.get('/', authMiddleware, async (req, res) => {
         id: torre.id_torre,
         name: torre.letra,
         description: torre.descripcion || `Torre ${torre.letra}`,
-        image: null,
+        image: findBuildingImage(torre.id_torre), // Búsqueda dinámica de imagen
         createdAt: torre.createdAt,
         updatedAt: torre.updatedAt,
         address: `Torre ${torre.letra}`,
@@ -124,7 +159,7 @@ router.get('/', authMiddleware, async (req, res) => {
       id: torre.id_torre,
       name: torre.letra,
       description: torre.descripcion || `Torre ${torre.letra}`,
-      image: `/edificios/${torre.id_torre}/1757037853446.png`, // Ruta dinámica de imagen
+      image: findBuildingImage(torre.id_torre), // Búsqueda dinámica de imagen
       createdAt: torre.createdAt,
       updatedAt: torre.updatedAt,
       // Mapear niveles como floors

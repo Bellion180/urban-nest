@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -11,8 +11,16 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, isAuthenticated, loading } = useAuth();
   const navigate = useNavigate();
+
+  // Si el usuario ya está autenticado, redirigir al dashboard
+  useEffect(() => {
+    if (!loading && isAuthenticated) {
+      console.log('Login: Usuario ya autenticado, redirigiendo al dashboard');
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isAuthenticated, loading, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,7 +37,8 @@ const Login = () => {
         description: "Has iniciado sesión exitosamente",
       });
       
-      navigate('/dashboard');
+      // Usar replace para evitar que el usuario pueda volver atrás al login
+      navigate('/dashboard', { replace: true });
     } catch (error: any) {
       console.error('Login: Error de autenticación:', error);
       
