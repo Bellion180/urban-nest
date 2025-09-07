@@ -105,7 +105,7 @@ router.get('/', authMiddleware, async (req, res) => {
       where,
       include: {
         building: {
-          select: {
+  ...(parsedFinanciero ? {
             name: true
           }
         },
@@ -322,7 +322,8 @@ router.post('/', upload.fields([
       buildingId,
       apartmentNumber,
       floorNumber,
-      inviInfo
+    inviInfo,
+    tlaxilacalliInfo
     } = req.body;
 
     // Verificar que es admin
@@ -392,6 +393,7 @@ router.post('/', upload.fields([
       return res.status(400).json({ error: 'Usuario no válido' });
     }
 
+
     // Parsear información INVI si existe
     let parsedInviInfo = null;
     if (inviInfo) {
@@ -399,6 +401,26 @@ router.post('/', upload.fields([
         parsedInviInfo = typeof inviInfo === 'string' ? JSON.parse(inviInfo) : inviInfo;
       } catch (error) {
         console.error('Error parsing inviInfo:', error);
+      }
+    }
+
+    // Parsear información Tlaxilacalli si existe
+    let parsedTlaxilacalliInfo = null;
+    if (tlaxilacalliInfo) {
+      try {
+        parsedTlaxilacalliInfo = typeof tlaxilacalliInfo === 'string' ? JSON.parse(tlaxilacalliInfo) : tlaxilacalliInfo;
+      } catch (error) {
+        console.error('Error parsing tlaxilacalliInfo:', error);
+      }
+    }
+
+    // Parsear información financiera si existe
+    let parsedFinanciero = null;
+    if (req.body.financiero) {
+      try {
+        parsedFinanciero = typeof req.body.financiero === 'string' ? JSON.parse(req.body.financiero) : req.body.financiero;
+      } catch (error) {
+        console.error('Error parsing financiero:', error);
       }
     }
 
@@ -438,6 +460,33 @@ router.post('/', upload.fields([
               idCompanero: parsedInviInfo.idCompanero || null
             }
           }
+        }),
+        // Crear información financiera si se proporciona
+        ...(parsedFinanciero && {
+          financieros: {
+            create: {
+              veladas: parsedFinanciero.veladas || null,
+              aportaciones: parsedFinanciero.aportaciones || null,
+              faenas: parsedFinanciero.faenas || null,
+              salidas: parsedFinanciero.salidas || null,
+              id_compañeros: parsedFinanciero.id_compañeros ? parseInt(parsedFinanciero.id_compañeros) : null
+            }
+          }
+        }),
+        // Crear información Tlaxilacalli si se proporciona
+        ...(parsedTlaxilacalliInfo && {
+          info_tlaxilacalli: {
+            create: {
+              Excedente: parsedTlaxilacalliInfo.Excedente || null,
+              Aport: parsedTlaxilacalliInfo.Aport || null,
+              Deuda: parsedTlaxilacalliInfo.Deuda || null,
+              Estacionamiento: parsedTlaxilacalliInfo.Estacionamiento || null,
+              Aportacion: parsedTlaxilacalliInfo.Aportacion || null,
+              Aportacion_Deuda: parsedTlaxilacalliInfo.Aportacion_Deuda || null,
+              Apoyo_renta: parsedTlaxilacalliInfo.Apoyo_renta || null,
+              Comentarios: parsedTlaxilacalliInfo.Comentarios || null
+            }
+          }
         })
       },
       include: {
@@ -447,7 +496,9 @@ router.post('/', upload.fields([
             floor: true
           }
         },
-        inviInfo: true
+        inviInfo: true,
+        financieros: true,
+        info_tlaxilacalli: true
       }
     });
 

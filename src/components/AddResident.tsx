@@ -64,16 +64,29 @@ const AddResident = () => {
     noPersonasDiscapacitadas: '',
     discapacidad: false,
     
-    // Información financiera
-    deudaActual: '',
-    pagosRealizados: '',
-    
-    // Información INVI
-    idInvi: '',
-    mensualidades: '',
-    fechaContrato: '',
-    deuda: '',
-    idCompanero: ''
+  // Información financiera
+  deudaActual: '',
+  pagosRealizados: '',
+  veladas: '',
+  aportaciones: '',
+  faenas: '',
+  salidas: '',
+  id_compañeros: '',
+  // Información INVI
+  idInvi: '',
+  mensualidades: '',
+  fechaContrato: '',
+  deuda: '',
+  idCompanero: '',
+  // Información Tlaxilacalli
+  Excedente: '',
+  Aport: '',
+  Deuda: '',
+  Estacionamiento: '',
+  Aportacion: '',
+  Aportacion_Deuda: '',
+  Apoyo_renta: '',
+  Comentarios: ''
   });
 
   // Cargar edificios al montar el componente
@@ -143,52 +156,64 @@ const AddResident = () => {
       // Encontrar el edificio y piso seleccionados
       const building = buildings.find(b => b.id === selectedBuilding);
       const floor = building?.floors.find(f => f.id === selectedFloor);
-      
       if (!building || !floor) {
         throw new Error('No se pudo encontrar el edificio o piso seleccionado');
       }
-
-      // Obtener el número del piso del nombre (ej: "Piso 1" -> "1")
       const floorNumber = floor.name?.match(/\d+/)?.[0] || '1';
 
-      // Preparar los datos para el servicio
-      const residentData = {
-        // Información personal
-        nombre: formData.nombre,
-        apellido: formData.apellido,
-        email: formData.email || undefined,
-        telefono: formData.telefono || undefined,
-        fechaNacimiento: formData.fechaNacimiento || undefined,
-        edad: formData.edad ? parseInt(formData.edad) : undefined,
-        noPersonas: formData.noPersonas ? parseInt(formData.noPersonas) : undefined,
-        noPersonasDiscapacitadas: formData.noPersonasDiscapacitadas ? parseInt(formData.noPersonasDiscapacitadas) : 0,
-        discapacidad: formData.discapacidad,
-        
-        // Información financiera
-        deudaActual: formData.deudaActual ? parseFloat(formData.deudaActual) : 0,
-        pagosRealizados: formData.pagosRealizados ? parseFloat(formData.pagosRealizados) : 0,
-        
-        // Información de ubicación
-        apartmentNumber: selectedApartment,
-        buildingId: selectedBuilding,
-        floorNumber: floorNumber,
-        profilePhoto: profilePhoto || undefined,
-        
-        // Documentos PDF
-        documents: documents,
-        
-        // Información INVI
-        inviInfo: {
-          idInvi: formData.idInvi || undefined,
-          mensualidades: formData.mensualidades ? parseInt(formData.mensualidades) : undefined,
-          fechaContrato: formData.fechaContrato || undefined,
-          deuda: formData.deuda ? parseFloat(formData.deuda) : 0,
-          idCompanero: formData.idCompanero || undefined
-        }
-      };
+      // Crear FormData para enviar archivos y datos
+      const form = new FormData();
+      // Información personal
+      form.append('nombre', formData.nombre);
+      form.append('apellido', formData.apellido);
+      form.append('email', formData.email || '');
+      form.append('telefono', formData.telefono || '');
+      form.append('fechaNacimiento', formData.fechaNacimiento || '');
+      form.append('edad', formData.edad ? formData.edad.toString() : '');
+      form.append('noPersonas', formData.noPersonas ? formData.noPersonas.toString() : '');
+      form.append('noPersonasDiscapacitadas', formData.noPersonasDiscapacitadas ? formData.noPersonasDiscapacitadas.toString() : '0');
+      form.append('discapacidad', formData.discapacidad ? 'true' : 'false');
+      // Información financiera básica
+      form.append('deudaActual', formData.deudaActual ? formData.deudaActual.toString() : '0');
+      form.append('pagosRealizados', formData.pagosRealizados ? formData.pagosRealizados.toString() : '0');
+      // Información financiera extendida
+      form.append('financiero.veladas', formData.veladas);
+      form.append('financiero.aportaciones', formData.aportaciones);
+      form.append('financiero.faenas', formData.faenas);
+      form.append('financiero.salidas', formData.salidas);
+      form.append('financiero.id_compañeros', formData.id_compañeros ? formData.id_compañeros.toString() : '');
+      // Información de ubicación
+      form.append('apartmentNumber', selectedApartment);
+      form.append('buildingId', selectedBuilding);
+      form.append('floorNumber', floorNumber);
+      // Foto de perfil
+      if (profilePhoto) form.append('profilePhoto', profilePhoto);
+      // Documentos PDF
+      Object.entries(documents).forEach(([key, file]) => {
+        if (file) form.append(`documents_${key}`, file);
+      });
+      // Información INVI
+      form.append('inviInfo', JSON.stringify({
+        idInvi: formData.idInvi || '',
+        mensualidades: formData.mensualidades ? parseInt(formData.mensualidades) : undefined,
+        fechaContrato: formData.fechaContrato || '',
+        deuda: formData.deuda ? parseFloat(formData.deuda) : 0,
+        idCompanero: formData.idCompanero || ''
+      }));
+      // Información Tlaxilacalli
+      form.append('tlaxilacalliInfo', JSON.stringify({
+        Excedente: formData.Excedente ? parseInt(formData.Excedente) : null,
+        Aport: formData.Aport ? parseInt(formData.Aport) : null,
+        Deuda: formData.Deuda ? parseInt(formData.Deuda) : null,
+        Estacionamiento: formData.Estacionamiento ? parseInt(formData.Estacionamiento) : null,
+        Aportacion: formData.Aportacion ? parseInt(formData.Aportacion) : null,
+        Aportacion_Deuda: formData.Aportacion_Deuda ? parseInt(formData.Aportacion_Deuda) : null,
+        Apoyo_renta: formData.Apoyo_renta || '',
+        Comentarios: formData.Comentarios || ''
+      }));
 
       // Crear el residente usando el servicio
-      await residentService.createWithPhoto(residentData);
+      await residentService.createWithPhoto(form);
 
       toast({
         title: "Éxito",
@@ -240,7 +265,7 @@ const AddResident = () => {
             ) : (
               <form onSubmit={handleSubmit} className="space-y-6">
                 <Tabs defaultValue="personal" className="w-full">
-                  <TabsList className="grid w-full grid-cols-4">
+                  <TabsList className="grid w-full grid-cols-5">
                     <TabsTrigger value="personal" className="flex items-center gap-2">
                       <User className="h-4 w-4" />
                       Personal
@@ -257,6 +282,47 @@ const AddResident = () => {
                       <Upload className="h-4 w-4" />
                       Documentos
                     </TabsTrigger>
+                    <TabsTrigger value="tlaxilacalli" className="flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      Información Tlaxilacalli
+                    </TabsTrigger>
+                  {/* Información Tlaxilacalli */}
+                  <TabsContent value="tlaxilacalli" className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="Excedente">Excedente</Label>
+                        <Input id="Excedente" type="number" placeholder="Excedente" value={formData.Excedente} onChange={e => handleInputChange('Excedente', e.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="Aport">Aport</Label>
+                        <Input id="Aport" type="number" placeholder="Aport" value={formData.Aport} onChange={e => handleInputChange('Aport', e.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="Deuda">Deuda</Label>
+                        <Input id="Deuda" type="number" placeholder="Deuda" value={formData.Deuda} onChange={e => handleInputChange('Deuda', e.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="Estacionamiento">Estacionamiento</Label>
+                        <Input id="Estacionamiento" type="number" placeholder="Estacionamiento" value={formData.Estacionamiento} onChange={e => handleInputChange('Estacionamiento', e.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="Aportacion">Aportación</Label>
+                        <Input id="Aportacion" type="number" placeholder="Aportación" value={formData.Aportacion} onChange={e => handleInputChange('Aportacion', e.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="Aportacion_Deuda">Aportación Deuda</Label>
+                        <Input id="Aportacion_Deuda" type="number" placeholder="Aportación Deuda" value={formData.Aportacion_Deuda} onChange={e => handleInputChange('Aportacion_Deuda', e.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="Apoyo_renta">Apoyo Renta</Label>
+                        <Input id="Apoyo_renta" type="text" placeholder="Apoyo Renta" value={formData.Apoyo_renta} onChange={e => handleInputChange('Apoyo_renta', e.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="Comentarios">Comentarios</Label>
+                        <Input id="Comentarios" type="text" placeholder="Comentarios" value={formData.Comentarios} onChange={e => handleInputChange('Comentarios', e.target.value)} />
+                      </div>
+                    </div>
+                  </TabsContent>
                   </TabsList>
 
                   {/* Información Personal */}
@@ -414,6 +480,61 @@ const AddResident = () => {
                           placeholder="0.00" 
                           value={formData.pagosRealizados}
                           onChange={(e) => handleInputChange('pagosRealizados', e.target.value)}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="veladas">Veladas</Label>
+                        <Input 
+                          id="veladas" 
+                          type="text" 
+                          placeholder="Veladas" 
+                          value={formData.veladas}
+                          onChange={(e) => handleInputChange('veladas', e.target.value)}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="aportaciones">Aportaciones</Label>
+                        <Input 
+                          id="aportaciones" 
+                          type="text" 
+                          placeholder="Aportaciones" 
+                          value={formData.aportaciones}
+                          onChange={(e) => handleInputChange('aportaciones', e.target.value)}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="faenas">Faenas</Label>
+                        <Input 
+                          id="faenas" 
+                          type="text" 
+                          placeholder="Faenas" 
+                          value={formData.faenas}
+                          onChange={(e) => handleInputChange('faenas', e.target.value)}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="salidas">Salidas</Label>
+                        <Input 
+                          id="salidas" 
+                          type="text" 
+                          placeholder="Salidas" 
+                          value={formData.salidas}
+                          onChange={(e) => handleInputChange('salidas', e.target.value)}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="id_compañeros">ID Compañeros</Label>
+                        <Input 
+                          id="id_compañeros" 
+                          type="number" 
+                          placeholder="ID Compañeros" 
+                          value={formData.id_compañeros}
+                          onChange={(e) => handleInputChange('id_compañeros', e.target.value)}
                         />
                       </div>
                     </div>

@@ -1,12 +1,13 @@
 import express from 'express';
 import { prisma } from '../../src/lib/prisma.js';
+import { authMiddleware } from '../middleware/auth.js';
 
 const router = express.Router();
 
 console.log('🏠 Cargando rutas de companeros...');
 
 // Obtener todos los compañeros
-router.get('/', async (req, res) => {
+router.get('/', authMiddleware, async (req, res) => {
   try {
     console.log('🔍 API: Endpoint /companeros called');
     
@@ -36,8 +37,10 @@ router.get('/', async (req, res) => {
       ]
     });
 
-    console.log(`🔍 Companeros found: ${companeros.length}`);
-    
+    if (!companeros || companeros.length === 0) {
+      return res.json([]);
+    }
+
     // Mapear los datos a la estructura anterior para compatibilidad
     const mappedResidents = companeros.map(companero => {
       // Obtener información del nivel del departamento

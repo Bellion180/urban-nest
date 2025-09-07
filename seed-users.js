@@ -36,7 +36,7 @@ async function main() {
       email: 'user@urbannest.com',
       password: userPassword,
       name: 'Usuario Regular',
-      role: 'USER'
+      role: 'RESIDENT'
     }
   });
 

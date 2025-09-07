@@ -1,3 +1,31 @@
+// Modelo de Torres (Edificios)
+model Torres {
+  id_torre      String         @id @default(cuid())
+  letra         String
+  descripcion   String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  departamentos Departamentos[]
+  niveles       Niveles[]
+
+  @@map("torres")
+}
+
+// Modelo de Niveles (Pisos)
+model Niveles {
+  id_nivel      String         @id @default(cuid())
+  nombre        String
+  numero        Int
+  id_torre      String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  torre         Torres        @relation(fields: [id_torre], references: [id_torre], onDelete: Cascade)
+  departamentos Departamentos[]
+
+  @@map("niveles")
+}
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
@@ -27,79 +55,60 @@ enum PaymentType {
   PAGO_MANTENIMIENTO
   OTROS
 }
-
-// Tabla de usuarios (mantenida como está)
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
+  name      String?
   password  String
-  name      String
-  role      Role     @default(RESIDENT)
+  role      Role     @default(ADMIN)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relación con compañeros si es admin
+  // Relación con Companeros
   companeros Companeros[]
 
   @@map("users")
 }
 
-// Tabla de Torres (edificios)
-model Torres {
-  id_torre        String   @id @default(cuid())
-  letra           String   @unique
-  nivel           String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  // Relaciones
-  departamentos   Departamentos[]
-
-  @@map("torres")
-}
-
-// Tabla de Departamentos
+// Modelo básico de Departamentos
 model Departamentos {
   id_departamento String   @id @default(cuid())
-  no_departamento String
-  id_torre        String
+  nombre          String
+  descripcion     String?
+  id_torre        String?
+  id_nivel        String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   // Relaciones
-  torre           Torres      @relation(fields: [id_torre], references: [id_torre], onDelete: Cascade)
+  torre           Torres?        @relation(fields: [id_torre], references: [id_torre], onDelete: SetNull)
+  nivel           Niveles?       @relation(fields: [id_nivel], references: [id_nivel], onDelete: SetNull)
   companeros      Companeros[]
 
-  @@unique([no_departamento, id_torre])
   @@map("departamentos")
 }
 
-// Tabla de Compañeros (residentes)
-model Companeros {
-  id_companero        String   @id @default(cuid())
-  nombre              String
-  apellidos           String
-  fecha_nacimiento    DateTime?
-  no_personas         Int?
-  no_des_per          Int?     @default(0) // número de personas discapacitadas
-  recibo_apoyo        String?  @db.VarChar(10)
-  no_apoyo            Int?
-  id_departamento     String?
-  estatus             Status   @default(ACTIVO)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  createdById         String
+// Tabla de usuarios (mantenida como está)
+// Tabla de Info_Tlaxilacalli
+model Info_Tlaxilacalli {
+  id_Tlax             String   @id @default(cuid())
+  Excedente           Int?
+  Aport               Int?
+  Deuda               Int?
+  Estacionamiento     Int?
+  Aportacion          Int?
+  Aportacion_Deuda    Int?
+  Apoyo_renta         String?   @db.VarChar(255)
+  Comentarios         String?   @db.VarChar(255)
+  id_compañeros       String    @unique
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
-  // Relaciones
-  departamento        Departamentos? @relation(fields: [id_departamento], references: [id_departamento], onDelete: SetNull)
-  createdBy           User           @relation(fields: [createdById], references: [id])
-  info_financiero     Info_Financiero?
-  financieros         Financieros[]
+  companero           Companeros @relation(fields: [id_compañeros], references: [id_companero], onDelete: Cascade)
 
-  @@map("companeros")
+  @@map("info_tlaxilacalli")
 }
 
-// Tabla de Info_Financiero (información INVI)
 model Info_Financiero {
   id_flux             String    @id @default(cuid())
   excelente           String?   @db.VarChar(10)
@@ -120,19 +129,61 @@ model Info_Financiero {
   @@map("info_financiero")
 }
 
+// Tabla de Compañeros (residentes)
+model Companeros {
+  id_departamento     String?
+  createdById         String
+
+  // Relaciones
+  departamento        Departamentos? @relation(fields: [id_departamento], references: [id_departamento], onDelete: SetNull)
+  createdBy           User?          @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  id_companero        String   @id @default(cuid())
+  nombre              String
+  apellidos           String
+  fecha_nacimiento    DateTime?
+  no_personas         Int?
+  no_des_per          Int?     @default(0) // número de personas discapacitadas
+  recibo_apoyo        String?  @db.VarChar(10)
+  no_apoyo            Int?
+  estatus             Status   @default(ACTIVO)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Relaciones
+  info_financiero     Info_Financiero?
+  financieros         Financieros[]
+  info_tlaxilacalli  Info_Tlaxilacalli?
+  invi                INVI?
+
+  @@map("companeros")
+}
+
+// Tabla de Info_Financiero (información INVI)
+
+// Tabla de INVI (información de contrato y mensualidades)
+model INVI {
+  id_invi            Int      @id @default(autoincrement())
+  Mensualidades      String?
+  fecha_de_contrato  String?
+  deuda              Int?
+  id_companero       String   @unique
+  companero          Companeros @relation(fields: [id_companero], references: [id_companero], onDelete: Cascade)
+  @@map("invi")
+}
+
 // Tabla de Financieros (pagos y transacciones)
 model Financieros {
   id_financieros      String      @id @default(cuid())
-  validez             String?     @db.VarChar(255)
+  veladas             String?     @db.VarChar(255)
   aportaciones        String?     @db.VarChar(255)
-  facturas            String?     @db.VarChar(255)
+  faenas              String?     @db.VarChar(255)
   salidas             String?     @db.VarChar(255)
-  id_companeros       String
+  id_compañeros       String
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt
 
   // Relación con compañero
-  companero           Companeros  @relation(fields: [id_companeros], references: [id_companero], onDelete: Cascade)
+  companero           Companeros  @relation(fields: [id_compañeros], references: [id_companero], onDelete: Cascade)
 
   @@map("financieros")
 }

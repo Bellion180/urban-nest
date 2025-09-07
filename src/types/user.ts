@@ -56,6 +56,7 @@ export interface Resident {
     description?: string;
     date: string;
   }>;
+  financieros?: Financieros; // Nuevo campo agregado
 }
 
 export interface Vehicle {

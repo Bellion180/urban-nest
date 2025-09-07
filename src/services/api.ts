@@ -353,11 +353,18 @@ export const residentService = {
   createWithPhoto: async (formData: FormData) => {
     // Extraer datos y crear sin foto
     const residentData: any = {};
+    const financiero: any = {};
     formData.forEach((value, key) => {
-      if (key !== 'photo') {
+      if (key.startsWith('financiero.')) {
+        const field = key.replace('financiero.', '');
+        financiero[field] = value;
+      } else if (key !== 'photo') {
         residentData[key] = value;
       }
     });
+    if (Object.keys(financiero).length > 0) {
+      residentData.financiero = financiero;
+    }
     return residentService.create(residentData);
   },
 };
