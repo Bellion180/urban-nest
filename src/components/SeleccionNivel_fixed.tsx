@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { Building, Users, ArrowLeft } from 'lucide-react';
 import Header from './Header';
 
@@ -157,59 +156,52 @@ export const SeleccionNivel = () => {
           </p>
         </div>
 
-        {/* Carrusel de niveles con flechas rojas */}
-        <div className="w-full">
-          <Carousel className="w-full">
-            <CarouselContent className="-ml-2 md:-ml-4">
-              {niveles.map((nivel) => (
-                <CarouselItem key={nivel.id_nivel} className="pl-2 md:pl-4 md:basis-1/2 lg:basis-1/3">
-                  <Card 
-                    className="bg-tlahuacali-cream hover:shadow-lg overflow-hidden cursor-pointer hover:scale-105 transition-transform"
-                    onClick={() => handleNivelSelect(nivel.id_nivel, nivel.numero_nivel)}
-                  >
-                    <div className="aspect-video relative">
-                      <img 
-                        src={`http://localhost:3001/edificios/${buildingId}/pisos/${nivel.numero_nivel}/piso.jpg`}
-                        alt={`Nivel ${nivel.numero_nivel}`}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          console.log(`Usando imagen por defecto para nivel ${nivel.numero_nivel}`);
-                          e.currentTarget.src = "/placeholder.svg";
-                        }}
-                      />
-                      <div className="absolute top-2 left-2 bg-tlahuacali-red text-white px-2 py-1 rounded-full text-xs font-medium">
-                        Nivel {nivel.numero_nivel}
-                      </div>
+        {/* Grid de niveles */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {niveles.map((nivel) => (
+            <Card 
+              key={nivel.id_nivel}
+              className="bg-tlahuacali-cream hover:shadow-lg overflow-hidden cursor-pointer hover:scale-105 transition-transform"
+              onClick={() => handleNivelSelect(nivel.id_nivel, nivel.numero_nivel)}
+            >
+              <div className="aspect-video relative">
+                <img 
+                  src={`/edificios/${buildingId}/nivel-${nivel.numero_nivel}.png`}
+                  alt={`Nivel ${nivel.numero_nivel}`}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    console.log(`Usando imagen por defecto para nivel ${nivel.numero_nivel}`);
+                    e.currentTarget.src = "/lovable-uploads/building-a.jpg";
+                  }}
+                />
+                <div className="absolute top-2 left-2 bg-tlahuacali-red text-white px-2 py-1 rounded-full text-xs font-medium">
+                  Nivel {nivel.numero_nivel}
+                </div>
+              </div>
+            
+              <CardContent className="p-4">
+                <h3 className="text-lg font-semibold text-foreground mb-2">
+                  {nivel.descripcion || `Piso ${nivel.numero_nivel}`}
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  {nivel.numero_nivel === 1 ? 'Planta baja' : `Piso número ${nivel.numero_nivel}`}
+                </p>
+                
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center space-x-3 text-xs text-muted-foreground">
+                    <div className="flex items-center space-x-1">
+                      <Building className="h-3 w-3" />
+                      <span>Departamentos</span>
                     </div>
-                  
-                    <CardContent className="p-4">
-                      <h3 className="text-lg font-semibold text-foreground mb-2">
-                        {nivel.descripcion || `Piso ${nivel.numero_nivel}`}
-                      </h3>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        {nivel.numero_nivel === 1 ? 'Planta baja' : `Piso número ${nivel.numero_nivel}`}
-                      </p>
-                      
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center space-x-3 text-xs text-muted-foreground">
-                          <div className="flex items-center space-x-1">
-                            <Building className="h-3 w-3" />
-                            <span>Departamentos</span>
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <Users className="h-3 w-3" />
-                            <span>Residentes</span>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </CarouselItem>
-              ))}
-            </CarouselContent>
-            <CarouselPrevious className="border-tlahuacali-red text-tlahuacali-red hover:bg-tlahuacali-red hover:text-white" />
-            <CarouselNext className="border-tlahuacali-red text-tlahuacali-red hover:bg-tlahuacali-red hover:text-white" />
-          </Carousel>
+                    <div className="flex items-center space-x-1">
+                      <Users className="h-3 w-3" />
+                      <span>Residentes</span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
         {niveles.length === 0 && (

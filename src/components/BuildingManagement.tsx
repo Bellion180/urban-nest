@@ -619,6 +619,24 @@ const BuildingManagement: React.FC<BuildingManagementProps> = ({ isOpen, onClose
                     </div>
                   </div>
                 </CardHeader>
+                
+                {/* Imagen del edificio */}
+                {building.image && (
+                  <div className="px-6 pb-2">
+                    <div className="aspect-video relative overflow-hidden rounded-lg">
+                      <img 
+                        src={`http://localhost:3001${building.image}`} 
+                        alt={building.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const img = e.target as HTMLImageElement;
+                          img.style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+                
                 <CardContent>
                   {editingBuilding?.id === building.id ? (
                     <div className="space-y-3">

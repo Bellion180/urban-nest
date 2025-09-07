@@ -7,7 +7,7 @@ import { prisma } from '../src/lib/prisma.js';
 
 // Importar rutas
 import authRoutes from './routes/auth.js';
-// import buildingRoutes from './routes/buildings.js';  // Reemplazado por torresRoutes
+import buildingRoutes from './routes/buildings.js';  // Habilitado para manejo de imágenes
 // import residentRoutes from './routes/residents.js';  // Reemplazado por companerosRoutes
 import paymentRoutes from './routes/payments.js';
 import { companerosRoutes } from './routes/companeros.js';
@@ -96,8 +96,8 @@ app.use('/api/companeros', companerosRoutes);
 app.use('/api/torres', torresRoutes);
 app.use('/api/niveles', nivelesRoutes);
 
-// Rutas de compatibilidad - redirigir a las nuevas rutas
-app.use('/api/buildings', authMiddleware, torresRoutes); 
+// Rutas de compatibilidad - usar buildingRoutes para funcionalidad completa de imágenes
+app.use('/api/buildings', authMiddleware, buildingRoutes); 
 app.use('/api/residents', authMiddleware, (req, res, next) => {
   console.log('🔀 Redirección: /api/residents -> /api/companeros', req.method, req.path);
   next();

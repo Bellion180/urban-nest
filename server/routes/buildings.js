@@ -148,7 +148,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Crear nuevo edificio
-router.post('/', upload.single('image'), async (req, res) => {
+router.post('/', authMiddleware, upload.single('image'), async (req, res) => {
   try {
     console.log('=== POST /buildings ===');
     console.log('Body:', req.body);
@@ -183,77 +183,102 @@ router.post('/', upload.single('image'), async (req, res) => {
       image: imagePath
     };
 
-    // Si se proporcionan pisos, incluirlos en la creación
+    let parsedFloors = [];
+    // Si se proporcionan pisos, parsearlos
     if (floors && typeof floors === 'string') {
       try {
-        const parsedFloors = JSON.parse(floors);
+        parsedFloors = JSON.parse(floors);
         console.log('Pisos parseados:', parsedFloors);
-        if (Array.isArray(parsedFloors) && parsedFloors.length > 0) {
-          buildingData.floors = {
-            create: parsedFloors.map(floor => ({
-              name: floor.name,
-              number: floor.number,
-              apartments: {
-                create: (floor.apartments || []).map(aptNumber => ({
-                  number: aptNumber
-                }))
-              }
-            }))
-          };
-        }
       } catch (parseError) {
         console.error('Error parsing floors:', parseError);
       }
     }
 
-    console.log('BuildingData a crear:', JSON.stringify(buildingData, null, 2));
+    console.log('Pisos a crear:', JSON.stringify(parsedFloors, null, 2));
 
-    const building = await prisma.building.create({
-      data: buildingData,
+    // Crear torre con el modelo correcto
+    const torre = await prisma.torres.create({
+      data: {
+        letra: buildingData.name,
+        descripcion: buildingData.description,
+        // Nota: imagen no está en el modelo Torres actual
+      }
+    });
+
+    console.log('Torre creada:', torre);
+
+    // Si hay pisos, crearlos en el modelo Niveles
+    if (parsedFloors && parsedFloors.length > 0) {
+      for (const floorData of parsedFloors) {
+        const nivel = await prisma.niveles.create({
+          data: {
+            nombre: floorData.name,
+            numero: floorData.number,
+            id_torre: torre.id_torre
+          }
+        });
+
+        console.log('Nivel creado:', nivel);
+
+        // Si hay apartamentos, crearlos en el modelo Departamentos
+        if (floorData.apartments && floorData.apartments.length > 0) {
+          for (const aptNumber of floorData.apartments) {
+            await prisma.departamentos.create({
+              data: {
+                nombre: aptNumber,
+                descripcion: `Departamento ${aptNumber}`,
+                id_torre: torre.id_torre,
+                id_nivel: nivel.id_nivel
+              }
+            });
+            console.log('Departamento creado:', aptNumber);
+          }
+        }
+      }
+    }
+
+    console.log('Torre creada exitosamente:', torre.id_torre);
+
+    // Mover imagen a carpeta definitiva del edificio
+    if (req.file) {
+      const oldPath = path.join('public', 'edificios', 'temp', req.file.filename);
+      const newDir = path.join('public', 'edificios', torre.id_torre.toString());
+      if (!fs.existsSync(newDir)) fs.mkdirSync(newDir, { recursive: true });
+      const newPath = path.join(newDir, req.file.filename);
+      fs.renameSync(oldPath, newPath);
+      
+      imagePath = `/edificios/${torre.id_torre}/${req.file.filename}`;
+      console.log('Imagen movida a:', imagePath);
+    }
+
+    // Obtener la torre creada con sus relaciones para formatear la respuesta
+    const torreCompleta = await prisma.torres.findUnique({
+      where: { id_torre: torre.id_torre },
       include: {
-        floors: {
+        niveles: {
           include: {
-            apartments: true
+            departamentos: true
           },
           orderBy: {
-            number: 'asc'
+            numero: 'asc'
           }
         }
       }
     });
 
-    console.log('Edificio creado:', building.id);
-
-    // Mover imagen a carpeta definitiva del edificio
-    if (req.file) {
-      const oldPath = path.join('public', 'edificios', 'temp', req.file.filename);
-      const newDir = path.join('public', 'edificios', building.id.toString());
-      if (!fs.existsSync(newDir)) fs.mkdirSync(newDir, { recursive: true });
-      const newPath = path.join(newDir, req.file.filename);
-      fs.renameSync(oldPath, newPath);
-      
-      // Actualizar la ruta de la imagen en la base de datos
-      await prisma.building.update({
-        where: { id: building.id },
-        data: { image: `/edificios/${building.id}/${req.file.filename}` }
-      });
-      imagePath = `/edificios/${building.id}/${req.file.filename}`;
-      console.log('Imagen movida a:', imagePath);
-    }
-
-    // Formatear respuesta similar a GET
+    // Formatear respuesta similar a la estructura esperada por el frontend
     const formattedBuilding = {
-      id: building.id,
-      name: building.name,
-      description: building.description,
+      id: torreCompleta.id_torre,
+      name: torreCompleta.letra,
+      description: torreCompleta.descripcion,
       image: imagePath,
-      floors: building.floors.map(floor => ({
-        id: floor.id,
-        name: floor.name,
-        number: floor.number,
-        apartments: floor.apartments.map(apt => apt.number)
+      floors: torreCompleta.niveles.map(nivel => ({
+        id: nivel.id_nivel,
+        name: nivel.nombre,
+        number: nivel.numero,
+        apartments: nivel.departamentos.map(dept => dept.nombre)
       })),
-      totalApartments: building.floors.reduce((total, floor) => total + floor.apartments.length, 0),
+      totalApartments: torreCompleta.niveles.reduce((total, nivel) => total + nivel.departamentos.length, 0),
       totalResidents: 0
     };
 
