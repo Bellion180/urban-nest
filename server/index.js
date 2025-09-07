@@ -12,6 +12,7 @@ import authRoutes from './routes/auth.js';
 import paymentRoutes from './routes/payments.js';
 import { companerosRoutes } from './routes/companeros.js';
 import { torresRoutes } from './routes/torres.js';
+import { nivelesRoutes } from './routes/niveles.js';
 
 // Importar middlewares
 import authMiddleware, { adminMiddleware } from './middleware/auth.js';
@@ -84,9 +85,16 @@ app.options('/api/auth/register', cors(corsOptions));
 app.options('/api/auth/verify', cors(corsOptions));
 app.use('/api/auth', authRoutes); // No requiere autenticación previa
 
+// RUTA DE DEBUG TEMPORAL (sin autenticación)
+app.get('/api/debug/companeros', (req, res) => {
+  console.log('🔍 DEBUG: Ruta de companeros sin auth llamada');
+  res.json({ message: 'Companeros debug route works!', timestamp: new Date().toISOString() });
+});
+
 // Rutas protegidas - Nuevas rutas principales
 app.use('/api/companeros', authMiddleware, companerosRoutes);
 app.use('/api/torres', authMiddleware, torresRoutes);
+app.use('/api/niveles', authMiddleware, nivelesRoutes);
 
 // Rutas de compatibilidad - redirigir a las nuevas rutas
 app.use('/api/buildings', authMiddleware, torresRoutes); 

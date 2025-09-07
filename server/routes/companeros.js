@@ -14,7 +14,12 @@ router.get('/', async (req, res) => {
       include: {
         departamento: {
           include: {
-            torre: true
+            torre: true,
+            niveles: {
+              include: {
+                nivel: true
+              }
+            }
           }
         },
         info_financiero: true,
@@ -35,7 +40,10 @@ router.get('/', async (req, res) => {
     
     // Mapear los datos a la estructura anterior para compatibilidad
     const mappedResidents = companeros.map(companero => {
-      console.log(`🔧 Mapping companero: ${companero.nombre} - Torre: ${companero.departamento?.torre?.letra || 'SIN TORRE'} - Depto: ${companero.departamento?.no_departamento || 'SIN DEPTO'}`);
+      // Obtener información del nivel del departamento
+      const nivelInfo = companero.departamento?.niveles?.[0]?.nivel;
+      
+      console.log(`🔧 Mapping companero: ${companero.nombre} - Torre: ${companero.departamento?.torre?.letra || 'SIN TORRE'} - Depto: ${companero.departamento?.no_departamento || 'SIN DEPTO'} - Nivel: ${nivelInfo?.numero || 'SIN NIVEL'}`);
       
       return {
         id: companero.id_companero,
@@ -82,18 +90,141 @@ router.get('/', async (req, res) => {
         apartment: companero.departamento ? {
           id: companero.departamento.id_departamento,
           number: companero.departamento.no_departamento,
-          floor: {
+          floor: nivelInfo ? {
+            id: nivelInfo.id_nivel,
+            name: nivelInfo.nombre || `Nivel ${nivelInfo.numero}`,
+            number: nivelInfo.numero
+          } : {
             id: companero.departamento.id_torre,
-            name: companero.departamento.torre?.nivel || 'Nivel 1',
+            name: 'Nivel 1',
             number: 1
           }
-        } : null
+        } : null,
+        
+        // Información adicional del nivel para el frontend
+        piso: nivelInfo?.numero || 1,
+        pisoNombre: nivelInfo?.nombre || `Nivel ${nivelInfo?.numero || 1}`,
+        edificio: companero.departamento?.torre?.letra || 'Sin edificio',
+        apartamento: companero.departamento?.no_departamento || 'Sin departamento'
       };
     });
 
     res.json(mappedResidents);
   } catch (error) {
     console.error('Error al obtener compañeros:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// RUTA DE PRUEBA SIMPLE
+router.get('/test-simple', async (req, res) => {
+  console.log('🔥 RUTA DE PRUEBA SIMPLE LLAMADA');
+  res.json({ message: 'Ruta de prueba funciona correctamente', timestamp: new Date().toISOString() });
+});
+
+// NUEVA RUTA: Obtener compañeros por edificio y nivel (debe ir antes de rutas POST/PUT)
+console.log('🔧 Registrando ruta: /building/:buildingId/floor/:floorNumber');
+router.get('/building/:buildingId/floor/:floorNumber', async (req, res) => {
+  console.log('🔥 NUEVA RUTA LLAMADA: building/floor endpoint');
+  try {
+    const { buildingId, floorNumber } = req.params;
+    console.log(`🔍 API: Obteniendo residentes para edificio ${buildingId}, piso ${floorNumber}`);
+    
+    const companeros = await prisma.companeros.findMany({
+      where: {
+        departamento: {
+          id_torre: buildingId,
+          niveles: {
+            some: {
+              nivel: {
+                numero: parseInt(floorNumber)
+              }
+            }
+          }
+        }
+      },
+      include: {
+        departamento: {
+          include: {
+            torre: true,
+            niveles: {
+              include: {
+                nivel: true
+              }
+            }
+          }
+        },
+        info_financiero: true,
+        financieros: {
+          orderBy: {
+            createdAt: 'desc'
+          },
+          take: 5
+        }
+      },
+      orderBy: [
+        { apellidos: 'asc' },
+        { nombre: 'asc' }
+      ]
+    });
+
+    console.log(`🔍 Residentes encontrados para piso ${floorNumber}: ${companeros.length}`);
+    
+    // Mapear los datos igual que en el endpoint principal
+    const mappedResidents = companeros.map(companero => {
+      const nivelInfo = companero.departamento?.niveles?.[0]?.nivel;
+      
+      return {
+        id: companero.id_companero,
+        nombre: companero.nombre,
+        apellido: companero.apellidos,
+        fechaNacimiento: companero.fecha_nacimiento,
+        noPersonas: companero.no_personas,
+        discapacidad: companero.no_des_per > 0,
+        noPersonasDiscapacitadas: companero.no_des_per,
+        estatus: companero.estatus,
+        registrationDate: companero.createdAt,
+        createdAt: companero.createdAt,
+        updatedAt: companero.updatedAt,
+        buildingId: companero.departamento?.id_torre,
+        apartmentId: companero.id_departamento,
+        deudaActual: companero.info_financiero?.deuda ? parseFloat(companero.info_financiero.deuda) : 0,
+        informe: companero.info_financiero?.comentarios,
+        
+        // Información INVI mapeada
+        inviInfo: companero.info_financiero ? {
+          mensualidades: companero.info_financiero.aportacion,
+          deuda: companero.info_financiero.deuda ? parseFloat(companero.info_financiero.deuda) : 0,
+          idCompanero: companero.id_companero
+        } : null,
+        
+        // Relaciones mapeadas
+        building: companero.departamento?.torre ? {
+          id: companero.departamento.torre.id_torre,
+          name: companero.departamento.torre.letra
+        } : null,
+        apartment: companero.departamento ? {
+          id: companero.departamento.id_departamento,
+          number: companero.departamento.no_departamento,
+          floor: nivelInfo ? {
+            id: nivelInfo.id_nivel,
+            name: nivelInfo.nombre || `Nivel ${nivelInfo.numero}`,
+            number: nivelInfo.numero
+          } : null
+        } : null,
+        
+        // Información adicional del nivel para el frontend
+        piso: nivelInfo?.numero || 1,
+        pisoNombre: nivelInfo?.nombre || `Nivel ${nivelInfo?.numero || 1}`,
+        pisoNumero: nivelInfo?.numero || 1,
+        edificio: companero.departamento?.torre?.letra || 'Sin edificio',
+        apartamento: companero.departamento?.no_departamento || 'Sin departamento'
+      };
+    });
+
+    res.json(mappedResidents);
+  } catch (error) {
+    console.error('Error al obtener residentes por piso:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
