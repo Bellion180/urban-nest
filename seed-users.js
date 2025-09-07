@@ -51,18 +51,6 @@ async function main() {
     }
   });
 
-<<<<<<< HEAD
-  const user = await prisma.user.create({
-    data: {
-      email: 'user@urbannest.com',
-      password: userPassword,
-      name: 'Usuario Regular',
-      role: 'RESIDENT'
-    }
-  });
-
-=======
->>>>>>> f1590a7 (nueva base)
   const resident = await prisma.user.create({
     data: {
       email: 'resident@urbannest.com',
@@ -72,23 +60,16 @@ async function main() {
     }
   });
 
-  console.log('✅ Usuarios creados:');
-  console.log('👑 Admin:', admin.email);
-  console.log('🏠 Residente:', resident.email);
+  console.log('✅ Usuarios iniciales creados:');
+  console.log(` - Admin: ${admin.name} (${admin.email})`);
+  console.log(` - Resident: ${resident.name} (${resident.email})`);
 
   // Crear datos de ejemplo
   await createSampleData(admin.id);
-  
-  
-  console.log('\n📧 Credenciales de acceso:');
-  console.log('admin@urbannest.com / admin123');
-  console.log('resident@urbannest.com / resident123');
-  console.log('\n🚀 Base de datos inicializada correctamente!');
 }
 
 async function createSampleData(adminId) {
   console.log('🏢 Creando torres de ejemplo...');
-  
   try {
     // Crear Torre A
     const torreA = await prisma.torres.create({
@@ -139,14 +120,13 @@ async function createSampleData(adminId) {
     // Crear departamentos para Torre A - Primer piso
     const departamentosA1 = [];
     const apartmentNumbers1 = ['101', '102', '103'];
-    
     for (const aptNum of apartmentNumbers1) {
       const depto = await prisma.departamentos.create({
         data: {
           nombre: `Departamento ${aptNum}`,
           descripcion: `Apartamento ${aptNum}`,
           id_torre: torreA.id_torre,
-          id_nivel: nivelesA[0].id_nivel  // Primer piso
+          id_nivel: nivelesA[0].id_nivel
         }
       });
       departamentosA1.push(depto);
@@ -155,14 +135,13 @@ async function createSampleData(adminId) {
     // Crear departamentos para Torre A - Segundo piso
     const departamentosA2 = [];
     const apartmentNumbers2 = ['201', '202'];
-    
     for (const aptNum of apartmentNumbers2) {
       const depto = await prisma.departamentos.create({
         data: {
           nombre: `Departamento ${aptNum}`,
           descripcion: `Apartamento ${aptNum}`,
           id_torre: torreA.id_torre,
-          id_nivel: nivelesA[1].id_nivel  // Segundo piso
+          id_nivel: nivelesA[1].id_nivel
         }
       });
       departamentosA2.push(depto);
@@ -171,14 +150,13 @@ async function createSampleData(adminId) {
     // Crear departamentos para Torre A - Tercer piso
     const departamentosA3 = [];
     const apartmentNumbers3 = ['301'];
-    
     for (const aptNum of apartmentNumbers3) {
       const depto = await prisma.departamentos.create({
         data: {
           nombre: `Departamento ${aptNum}`,
           descripcion: `Apartamento ${aptNum}`,
           id_torre: torreA.id_torre,
-          id_nivel: nivelesA[2].id_nivel  // Tercer piso
+          id_nivel: nivelesA[2].id_nivel
         }
       });
       departamentosA3.push(depto);
@@ -187,14 +165,13 @@ async function createSampleData(adminId) {
     // Crear departamentos para Torre B - Primer piso
     const departamentosB1 = [];
     const apartmentNumbersB1 = ['101', '102'];
-    
     for (const aptNum of apartmentNumbersB1) {
       const depto = await prisma.departamentos.create({
         data: {
           nombre: `Departamento ${aptNum}`,
           descripcion: `Apartamento ${aptNum}`,
           id_torre: torreB.id_torre,
-          id_nivel: nivelesB[0].id_nivel  // Primer piso
+          id_nivel: nivelesB[0].id_nivel
         }
       });
       departamentosB1.push(depto);
@@ -203,14 +180,13 @@ async function createSampleData(adminId) {
     // Crear departamentos para Torre B - Segundo piso
     const departamentosB2 = [];
     const apartmentNumbersB2 = ['201', '202'];
-    
     for (const aptNum of apartmentNumbersB2) {
       const depto = await prisma.departamentos.create({
         data: {
           nombre: `Departamento ${aptNum}`,
           descripcion: `Apartamento ${aptNum}`,
           id_torre: torreB.id_torre,
-          id_nivel: nivelesB[1].id_nivel  // Segundo piso
+          id_nivel: nivelesB[1].id_nivel
         }
       });
       departamentosB2.push(depto);
@@ -226,7 +202,7 @@ async function createSampleData(adminId) {
         apellidos: 'Pérez González',
         fecha_nacimiento: new Date('1985-03-15'),
         no_personas: 3,
-        id_departamento: departamentosA1[0].id_departamento, // 101 Torre A
+        id_departamento: departamentosA1[0].id_departamento,
         createdById: adminId
       },
       {
@@ -234,7 +210,7 @@ async function createSampleData(adminId) {
         apellidos: 'García López',
         fecha_nacimiento: new Date('1990-07-22'),
         no_personas: 2,
-        id_departamento: departamentosA1[1].id_departamento, // 102 Torre A
+        id_departamento: departamentosA1[1].id_departamento,
         createdById: adminId
       },
       {
@@ -242,7 +218,7 @@ async function createSampleData(adminId) {
         apellidos: 'Rodríguez Martín',
         fecha_nacimiento: new Date('1982-11-08'),
         no_personas: 4,
-        id_departamento: departamentosA2[0].id_departamento, // 201 Torre A
+        id_departamento: departamentosA2[0].id_departamento,
         createdById: adminId
       },
       {
@@ -250,13 +226,13 @@ async function createSampleData(adminId) {
         apellidos: 'Fernández Silva',
         fecha_nacimiento: new Date('1988-05-12'),
         no_personas: 1,
-        id_departamento: departamentosB2[0].id_departamento, // 201 Torre B
+        id_departamento: departamentosB2[0].id_departamento,
         createdById: adminId
       }
     ];
 
     for (const companeroData of compañeros) {
-      const companero = await prisma.companeros.create({ 
+      const companero = await prisma.companeros.create({
         data: companeroData,
         include: {
           departamento: {
@@ -283,7 +259,7 @@ async function createSampleData(adminId) {
         }
       });
 
-      console.log(`� Compañero creado: ${companero.nombre} ${companero.apellidos} - Torre ${companero.departamento?.torre?.letra} Depto ${companero.departamento?.no_departamento}`);
+      console.log(`👤 Compañero creado: ${companero.nombre} ${companero.apellidos} - Torre ${companero.departamento?.torre?.letra} Depto ${companero.departamento?.no_departamento}`);
     }
 
     console.log(`👥 ${compañeros.length} compañeros de ejemplo creados con información financiera`);
@@ -295,10 +271,7 @@ async function createSampleData(adminId) {
 }
 
 main()
-  .catch((e) => {
-    console.error('❌ Error:', e);
-    process.exit(1);
-  })
+  .catch(e => console.error(e))
   .finally(async () => {
     await prisma.$disconnect();
   });

@@ -278,14 +278,16 @@ const AddResident = () => {
                       <FileText className="h-4 w-4" />
                       INVI
                     </TabsTrigger>
+                    <TabsTrigger value="tlaxilacalli" className="flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      Tlaxilacalli
+                    </TabsTrigger>
                     <TabsTrigger value="documentos" className="flex items-center gap-2">
                       <Upload className="h-4 w-4" />
                       Documentos
                     </TabsTrigger>
-                    <TabsTrigger value="tlaxilacalli" className="flex items-center gap-2">
-                      <FileText className="h-4 w-4" />
-                      Información Tlaxilacalli
-                    </TabsTrigger>
+                  </TabsList>
+
                   {/* Información Tlaxilacalli */}
                   <TabsContent value="tlaxilacalli" className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -321,11 +323,12 @@ const AddResident = () => {
                         <Label htmlFor="Comentarios">Comentarios</Label>
                         <Input id="Comentarios" type="text" placeholder="Comentarios" value={formData.Comentarios} onChange={e => handleInputChange('Comentarios', e.target.value)} />
                       </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="id_compañeros">ID Compañeros</Label>
+                        <Input id="id_compañeros" type="number" placeholder="ID Compañeros" value={formData.id_compañeros} onChange={e => handleInputChange('id_compañeros', e.target.value)} />
+                      </div>
                     </div>
                   </TabsContent>
-                  </TabsList>
-
-                  {/* Información Personal */}
                   <TabsContent value="personal" className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
