@@ -117,6 +117,7 @@ const BuildingManagement: React.FC<BuildingManagementProps> = ({ isOpen, onClose
     description: '',
     floors: []
   });
+  const [apartmentInputs, setApartmentInputs] = useState<{[floorId: string]: string}>({});
   const [newBuilding, setNewBuilding] = useState({
     name: '',
     description: '',
@@ -155,6 +156,13 @@ const BuildingManagement: React.FC<BuildingManagementProps> = ({ isOpen, onClose
       description: building.description,
       floors: building.floors
     });
+    
+    // Inicializar los inputs de apartamentos con los valores actuales
+    const inputs: {[floorId: string]: string} = {};
+    building.floors.forEach(floor => {
+      inputs[floor.id] = floor.apartments.join(', ');
+    });
+    setApartmentInputs(inputs);
   };
 
   const cancelEditing = () => {
@@ -164,6 +172,22 @@ const BuildingManagement: React.FC<BuildingManagementProps> = ({ isOpen, onClose
       description: '',
       floors: []
     });
+    setApartmentInputs({});
+  };
+
+  const processAllApartmentInputs = () => {
+    // Procesar todos los inputs pendientes antes de guardar
+    Object.keys(apartmentInputs).forEach(floorId => {
+      const inputValue = apartmentInputs[floorId];
+      if (inputValue !== undefined) {
+        const apartmentList = inputValue
+          .split(',')
+          .map(apt => apt.trim())
+          .filter(apt => apt.length > 0);
+        
+        updateFloorApartments(floorId, apartmentList);
+      }
+    });
   };
 
   const saveEditing = async () => {
@@ -171,6 +195,12 @@ const BuildingManagement: React.FC<BuildingManagementProps> = ({ isOpen, onClose
 
     try {
       setLoading(true);
+      
+      // Procesar todos los inputs pendientes antes de validar y guardar
+      processAllApartmentInputs();
+      
+      // Pequeño delay para asegurar que los estados se actualicen
+      await new Promise(resolve => setTimeout(resolve, 100));
       
       // Validar que los campos requeridos estén presentes
       if (!editForm.name || !editForm.description) {
@@ -668,10 +698,35 @@ const BuildingManagement: React.FC<BuildingManagementProps> = ({ isOpen, onClose
                             )}
                           </div>
                           <Input
-                            value={floor.apartments.join(', ')}
+                            value={apartmentInputs[floor.id] || floor.apartments.join(', ')}
                             onChange={(e) => {
-                              const apartmentList = e.target.value.split(',').map(apt => apt.trim()).filter(Boolean);
+                              // Actualizar solo el estado local del input
+                              setApartmentInputs(prev => ({
+                                ...prev,
+                                [floor.id]: e.target.value
+                              }));
+                            }}
+                            onBlur={(e) => {
+                              // Al perder el foco, procesar y actualizar el estado principal
+                              const inputValue = e.target.value;
+                              const apartmentList = inputValue
+                                .split(',')
+                                .map(apt => apt.trim())
+                                .filter(apt => apt.length > 0);
+                              
                               updateFloorApartments(floor.id, apartmentList);
+                              
+                              // Actualizar el input con el formato limpio
+                              setApartmentInputs(prev => ({
+                                ...prev,
+                                [floor.id]: apartmentList.join(', ')
+                              }));
+                            }}
+                            onKeyDown={(e) => {
+                              // Procesar también al presionar Enter
+                              if (e.key === 'Enter') {
+                                e.currentTarget.blur(); // Triggerea el onBlur
+                              }
                             }}
                             placeholder="101, 102, 103..."
                             className="text-xs"

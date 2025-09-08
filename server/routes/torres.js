@@ -116,7 +116,9 @@ router.get('/', authMiddleware, async (req, res) => {
           }
         })),
         _count: {
-          residents: torre.departamentos.reduce((total, dept) => total + dept.companeros.length, 0)
+          residents: torre.niveles.reduce((total, nivel) => 
+            total + nivel.departamentos.reduce((subTotal, dept) => 
+              subTotal + dept.companeros.length, 0), 0)
         }
       };
 
@@ -168,13 +170,15 @@ router.get('/', authMiddleware, async (req, res) => {
         name: nivel.nombre,
         number: nivel.numero,
         buildingId: torre.id_torre,
-        apartments: (nivel.departamentos || []).map(rel => rel.departamento?.no_departamento || null),
+        apartments: (nivel.departamentos || []).map(dept => dept.nombre),
         _count: {
-          residents: (nivel.departamentos || []).reduce((total, rel) => total + (rel.departamento?.companeros?.length || 0), 0)
+          residents: (nivel.departamentos || []).reduce((total, dept) => total + (dept.companeros?.length || 0), 0)
         }
       })),
       _count: {
-        residents: (torre.departamentos || []).reduce((total, dept) => total + (dept.companeros?.length || 0), 0)
+        residents: (torre.niveles || []).reduce((total, nivel) => 
+          total + (nivel.departamentos || []).reduce((subTotal, dept) => 
+            subTotal + (dept.companeros?.length || 0), 0), 0)
       }
     }));
 

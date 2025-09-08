@@ -246,9 +246,29 @@ export const buildingService = {
 
     return response.json();
   },
-  update: async (id: string, updateData: any) => {
-    // No hay endpoint de actualización directo, devolver estructura mínima
-    return { message: 'Update not implemented in new structure' };
+  update: async (id: string, updateData: {
+    name: string;
+    description: string;
+    floors: Array<{
+      id?: string;
+      name: string;
+      number: number;
+      apartments: string[];
+    }>;
+  }) => {
+    const response = await authenticatedFetch(`/buildings/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(updateData),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
   }
 };
 

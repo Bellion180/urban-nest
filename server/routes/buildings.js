@@ -1,259 +1,95 @@
 import express from 'express';
-import { prisma } from '../../src/lib/prisma.js';
-import { authMiddleware } from '../middleware/auth.js';
-import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import multer from 'multer';
+import { PrismaClient } from '@prisma/client';
+import authMiddleware from '../middleware/auth.js';
 
-// Configuración de multer para guardar imágenes en carpeta por edificio
+const router = express.Router();
+const prisma = new PrismaClient();
+
+// Configuración de multer para imágenes
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    // Para imágenes de edificio
-    if (req.route.path === '/') {
-      const dir = path.join('public', 'edificios', 'temp');
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      cb(null, dir);
+  destination: (req, file, cb) => {
+    const { type, buildingId, floorId } = req.body;
+    let uploadPath;
+
+    if (type === 'building') {
+      uploadPath = path.join('public', 'edificios', buildingId);
+    } else if (type === 'floor') {
+      uploadPath = path.join('public', 'edificios', buildingId, 'pisos', floorId);
+    } else if (type === 'resident') {
+      uploadPath = path.join('public', 'residentes');
     }
-    // Para imágenes de pisos
-    else if (req.route.path === '/:id/pisos/:pisoNumber/image') {
-      const { id, pisoNumber } = req.params;
-      const dir = path.join('public', 'edificios', id.toString(), 'pisos', pisoNumber.toString());
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      cb(null, dir);
+
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
     }
-    else {
-      cb(new Error('Ruta no válida para subida de archivos'), null);
-    }
+
+    cb(null, uploadPath);
   },
-  filename: function (req, file, cb) {
-    // Para pisos, usar nombre fijo
-    if (req.route.path === '/:id/pisos/:pisoNumber/image') {
-      cb(null, 'piso' + path.extname(file.originalname));
-    } else {
-      cb(null, Date.now() + path.extname(file.originalname));
-    }
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
   }
 });
-const upload = multer({ storage });
-const router = express.Router();
 
-// Obtener todos los edificios con sus pisos y apartamentos
-router.get('/', async (req, res) => {
+const upload = multer({ storage });
+
+// Listar todas las torres
+router.get('/', authMiddleware, async (req, res) => {
   try {
-    const buildings = await prisma.building.findMany({
+    console.log('=== GET /buildings ===');
+    console.log('Usuario autenticado:', req.user);
+
+    const torres = await prisma.torres.findMany({
       include: {
-        floors: {
+        niveles: {
           include: {
-            apartments: true
+            departamentos: true
           },
           orderBy: {
-            number: 'asc'
-          }
-        },
-        _count: {
-          select: {
-            residents: true
+            numero: 'asc'
           }
         }
       },
       orderBy: {
-        name: 'asc'
+        letra: 'asc'
       }
     });
 
-    // Formatear datos para el frontend
-    const formattedBuildings = buildings.map(building => ({
-      id: building.id,
-      name: building.name,
-      description: building.description,
-      image: building.image,
-      floors: building.floors.map(floor => ({
-        id: floor.id,
-        name: floor.name,
-        number: floor.number,
-        apartments: floor.apartments.map(apt => apt.number)
+    console.log(`Torres encontradas: ${torres.length}`);
+
+    const formattedBuildings = torres.map(torre => ({
+      id: torre.id_torre,
+      name: torre.letra,
+      description: torre.descripcion,
+      image: torre.imagen,
+      floors: torre.niveles.map(nivel => ({
+        id: nivel.id_nivel,
+        name: nivel.nombre,
+        number: nivel.numero,
+        apartments: nivel.departamentos.map(dept => dept.nombre)
       })),
-      totalApartments: building.floors.reduce((total, floor) => total + floor.apartments.length, 0),
-      totalResidents: building._count.residents
+      totalApartments: torre.niveles.reduce((total, nivel) => total + nivel.departamentos.length, 0),
+      totalResidents: 0 // TODO: Implementar conteo de residentes
     }));
 
     res.json(formattedBuildings);
   } catch (error) {
-    console.error('Error al obtener edificios:', error);
+    console.error('Error al obtener torres:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
-// Obtener edificio por ID con sus pisos, apartamentos y residentes
-router.get('/:id', async (req, res) => {
+// Obtener torre por ID
+router.get('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
+    console.log(`=== GET /buildings/${id} ===`);
 
-    const building = await prisma.building.findUnique({
-      where: { id },
-      include: {
-        floors: {
-          include: {
-            apartments: {
-              include: {
-                residents: {
-                  select: {
-                    id: true,
-                    nombre: true,
-                    apellido: true,
-                    email: true
-                  }
-                }
-              }
-            }
-          },
-          orderBy: {
-            number: 'asc'
-          }
-        }
-      }
-    });
-
-    if (!building) {
-      return res.status(404).json({ error: 'Edificio no encontrado' });
-    }
-
-    // Formatear datos para el frontend
-    const formattedBuilding = {
-      id: building.id,
-      name: building.name,
-      description: building.description,
-      address: building.address,
-      image: building.image,
-      floors: building.floors.map(floor => ({
-        id: floor.id,
-        name: floor.name,
-        number: floor.number,
-        apartments: floor.apartments.map(apt => ({
-          id: apt.id,
-          number: apt.number,
-          area: apt.area,
-          bedrooms: apt.bedrooms,
-          bathrooms: apt.bathrooms,
-          residents: apt.residents
-        }))
-      }))
-    };
-
-    res.json(formattedBuilding);
-  } catch (error) {
-    console.error('Error al obtener edificio:', error);
-    res.status(500).json({ error: 'Error interno del servidor' });
-  }
-});
-
-// Crear nuevo edificio
-router.post('/', authMiddleware, upload.single('image'), async (req, res) => {
-  try {
-    console.log('=== POST /buildings ===');
-    console.log('Body:', req.body);
-    console.log('File:', req.file);
-    console.log('User:', req.user);
-    
-    const { name, description, floors } = req.body;
-    let imagePath = '/placeholder-building.jpg';
-    
-    // Verificar que es admin
-    if (req.user.role !== 'ADMIN') {
-      console.log('Error: Usuario no es admin');
-      return res.status(403).json({ error: 'Acceso denegado' });
-    }
-
-    // Validar campos requeridos
-    if (!name || !description) {
-      console.log('Error: Campos requeridos faltantes');
-      return res.status(400).json({ error: 'Nombre y descripción son requeridos' });
-    }
-
-    // Procesar imagen si se envió
-    if (req.file) {
-      imagePath = `/edificios/temp/${req.file.filename}`;
-      console.log('Imagen procesada:', imagePath);
-    }
-
-    // Datos base del edificio
-    const buildingData = {
-      name,
-      description,
-      image: imagePath
-    };
-
-    let parsedFloors = [];
-    // Si se proporcionan pisos, parsearlos
-    if (floors && typeof floors === 'string') {
-      try {
-        parsedFloors = JSON.parse(floors);
-        console.log('Pisos parseados:', parsedFloors);
-      } catch (parseError) {
-        console.error('Error parsing floors:', parseError);
-      }
-    }
-
-    console.log('Pisos a crear:', JSON.stringify(parsedFloors, null, 2));
-
-    // Crear torre con el modelo correcto
-    const torre = await prisma.torres.create({
-      data: {
-        letra: buildingData.name,
-        descripcion: buildingData.description,
-        // Nota: imagen no está en el modelo Torres actual
-      }
-    });
-
-    console.log('Torre creada:', torre);
-
-    // Si hay pisos, crearlos en el modelo Niveles
-    if (parsedFloors && parsedFloors.length > 0) {
-      for (const floorData of parsedFloors) {
-        const nivel = await prisma.niveles.create({
-          data: {
-            nombre: floorData.name,
-            numero: floorData.number,
-            id_torre: torre.id_torre
-          }
-        });
-
-        console.log('Nivel creado:', nivel);
-
-        // Si hay apartamentos, crearlos en el modelo Departamentos
-        if (floorData.apartments && floorData.apartments.length > 0) {
-          for (const aptNumber of floorData.apartments) {
-            await prisma.departamentos.create({
-              data: {
-                nombre: aptNumber,
-                descripcion: `Departamento ${aptNumber}`,
-                id_torre: torre.id_torre,
-                id_nivel: nivel.id_nivel
-              }
-            });
-            console.log('Departamento creado:', aptNumber);
-          }
-        }
-      }
-    }
-
-    console.log('Torre creada exitosamente:', torre.id_torre);
-
-    // Mover imagen a carpeta definitiva del edificio
-    if (req.file) {
-      const oldPath = path.join('public', 'edificios', 'temp', req.file.filename);
-      const newDir = path.join('public', 'edificios', torre.id_torre.toString());
-      if (!fs.existsSync(newDir)) fs.mkdirSync(newDir, { recursive: true });
-      const newPath = path.join(newDir, req.file.filename);
-      fs.renameSync(oldPath, newPath);
-      
-      imagePath = `/edificios/${torre.id_torre}/${req.file.filename}`;
-      console.log('Imagen movida a:', imagePath);
-    }
-
-    // Obtener la torre creada con sus relaciones para formatear la respuesta
-    const torreCompleta = await prisma.torres.findUnique({
-      where: { id_torre: torre.id_torre },
+    const torre = await prisma.torres.findUnique({
+      where: { id_torre: id },
       include: {
         niveles: {
           include: {
@@ -266,118 +102,39 @@ router.post('/', authMiddleware, upload.single('image'), async (req, res) => {
       }
     });
 
-    // Formatear respuesta similar a la estructura esperada por el frontend
+    if (!torre) {
+      return res.status(404).json({ error: 'Torre no encontrada' });
+    }
+
     const formattedBuilding = {
-      id: torreCompleta.id_torre,
-      name: torreCompleta.letra,
-      description: torreCompleta.descripcion,
-      image: imagePath,
-      floors: torreCompleta.niveles.map(nivel => ({
+      id: torre.id_torre,
+      name: torre.letra,
+      description: torre.descripcion,
+      image: torre.imagen,
+      floors: torre.niveles.map(nivel => ({
         id: nivel.id_nivel,
         name: nivel.nombre,
         number: nivel.numero,
         apartments: nivel.departamentos.map(dept => dept.nombre)
       })),
-      totalApartments: torreCompleta.niveles.reduce((total, nivel) => total + nivel.departamentos.length, 0),
-      totalResidents: 0
+      totalApartments: torre.niveles.reduce((total, nivel) => total + nivel.departamentos.length, 0),
+      totalResidents: 0 // TODO: Implementar conteo de residentes
     };
 
-    console.log('Respuesta formateada:', formattedBuilding);
-
-    res.status(201).json({
-      message: 'Edificio creado exitosamente',
-      building: formattedBuilding
-    });
+    res.json(formattedBuilding);
   } catch (error) {
-    console.error('Error al crear edificio:', error);
-    console.error('Stack trace:', error.stack);
-    res.status(500).json({ error: 'Error interno del servidor', details: error.message });
-  }
-});
-
-// Endpoint para obtener imágenes de pisos de un edificio
-router.get('/:id/pisos/imagenes', async (req, res) => {
-  try {
-    const { id } = req.params;
-    console.log(`=== GET /buildings/${id}/pisos/imagenes ===`);
-    
-    const building = await prisma.building.findUnique({
-      where: { id },
-      include: { floors: true }
-    });
-
-    if (!building) {
-      return res.status(404).json({ error: 'Edificio no encontrado' });
-    }
-
-    const floorImages = [];
-    const buildingDir = path.join('public', 'edificios', id, 'pisos');
-    
-    if (fs.existsSync(buildingDir)) {
-      for (const floor of building.floors) {
-        const floorDir = path.join(buildingDir, floor.number.toString());
-        if (fs.existsSync(floorDir)) {
-          const files = fs.readdirSync(floorDir);
-          const imageFile = files.find(file => 
-            file.toLowerCase().startsWith('piso.') && 
-            /\.(jpg|jpeg|png|gif|webp)$/i.test(file)
-          );
-          
-          if (imageFile) {
-            floorImages.push({
-              pisoNumber: floor.number,
-              pisoName: floor.name,
-              imageUrl: `/edificios/${id}/pisos/${floor.number}/${imageFile}`
-            });
-          }
-        }
-      }
-    }
-
-    res.json({ buildingId: id, floorImages });
-  } catch (error) {
-    console.error('Error al obtener imágenes de pisos:', error);
+    console.error('Error al obtener torre:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
-// Endpoint para subir imagen de piso
-router.post('/:id/pisos/:pisoNumber/image', upload.single('image'), async (req, res) => {
+// Crear nueva torre
+router.post('/', authMiddleware, async (req, res) => {
   try {
-    const { id, pisoNumber } = req.params;
-    console.log(`=== POST /buildings/${id}/pisos/${pisoNumber}/image ===`);
-    console.log('User:', req.user);
-    console.log('File:', req.file);
-    
-    if (req.user.role !== 'ADMIN') {
-      return res.status(403).json({ error: 'Acceso denegado' });
-    }
-    if (!req.file) {
-      return res.status(400).json({ error: 'No se envió imagen' });
-    }
-    
-    // La imagen se guarda automáticamente en: public/edificios/[id]/pisos/[pisoNumber]/piso.jpg
-    const imagePath = `/edificios/${id}/pisos/${pisoNumber}/${req.file.filename}`;
-    
-    console.log('Imagen de piso guardada en:', imagePath);
-    res.json({ 
-      message: 'Imagen de piso subida correctamente', 
-      image: imagePath,
-      buildingId: id,
-      pisoNumber: parseInt(pisoNumber)
-    });
-  } catch (error) {
-    console.error('Error al subir imagen de piso:', error);
-    res.status(500).json({ error: 'Error interno del servidor' });
-  }
-});
-
-// Actualizar edificio
-router.put('/:id', authMiddleware, async (req, res) => {
-  try {
-    console.log('=== PUT /buildings/:id ===');
-    const { id } = req.params;
+    console.log('=== POST /buildings ===');
     const { name, description, floors } = req.body;
+
+    console.log('Datos recibidos:', { name, description, floors });
 
     // Verificar que es admin
     if (req.user.role !== 'ADMIN') {
@@ -389,203 +146,236 @@ router.put('/:id', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Nombre y descripción son requeridos' });
     }
 
-    // Obtener el edificio actual
-    const existingBuilding = await prisma.building.findUnique({
-      where: { id },
-      include: {
-        floors: {
-          include: {
-            apartments: true
-          }
-        }
-      }
-    });
-
-    if (!existingBuilding) {
-      return res.status(404).json({ error: 'Edificio no encontrado' });
-    }
-
-    try {
-      // Actualizar edificio base y sus pisos
-      const updatedBuilding = await prisma.building.update({
-        where: { id },
-        data: {
-          name,
-          description,
-          floors: {
-            // Eliminar pisos que ya no existen en la nueva configuración
-            deleteMany: {
-              id: {
-                notIn: floors.filter(f => !f.id.startsWith('temp-')).map(f => f.id)
-              }
-            },
-            // Actualizar pisos existentes y crear nuevos
-            upsert: floors.map(floor => ({
-              where: {
-                id: floor.id.startsWith('temp-') ? 'dummy-id' : floor.id
-              },
-              create: {
-                name: floor.name,
-                number: floor.number,
-                apartments: {
-                  create: floor.apartments.map(aptNumber => ({
-                    number: aptNumber
-                  }))
-                }
-              },
-              update: {
-                name: floor.name,
-                number: floor.number,
-                apartments: {
-                  deleteMany: {},
-                  create: floor.apartments.map(aptNumber => ({
-                    number: aptNumber
-                  }))
-                }
-              }
-            }))
-          }
-        },
-        include: {
-          floors: {
-            include: {
-              apartments: true
-            },
-            orderBy: {
-              number: 'asc'
-            }
-          },
-          _count: {
-            select: {
-              residents: true
-            }
-          }
-        }
-      });
-
-      // Formatear la respuesta
-      const formattedBuilding = {
-        id: updatedBuilding.id,
-        name: updatedBuilding.name,
-        description: updatedBuilding.description,
-        image: updatedBuilding.image,
-        floors: updatedBuilding.floors.map(floor => ({
-          id: floor.id,
-          name: floor.name,
-          number: floor.number,
-          apartments: floor.apartments.map(apt => apt.number)
-        })),
-        totalApartments: updatedBuilding.floors.reduce((total, floor) => total + floor.apartments.length, 0),
-        totalResidents: updatedBuilding._count.residents
-      };
-
-      res.json(formattedBuilding);
-
-    } catch (error) {
-      console.error('Error específico al actualizar:', error);
-      throw error;
-    }
-    
-    console.log('ID:', id);
-    console.log('Body:', req.body);
-    console.log('User:', req.user);
-
-    // Verificar que es admin
-    if (req.user.role !== 'ADMIN') {
-      console.log('Access denied - user role:', req.user.role);
-      return res.status(403).json({ error: 'Acceso denegado' });
-    }
-
-    console.log('Admin check passed');
-
-    // Si solo se actualizan datos básicos (sin floors)
-    if (!floors || floors.length === 0) {
-      console.log('Updating basic data only');
-      const building = await prisma.building.update({
-        where: { id },
-        data: {
-          name,
-          description
-        },
-        include: {
-          floors: {
-            include: {
-              apartments: true
-            },
-            orderBy: {
-              number: 'asc'
-            }
-          }
-        }
-      });
-
-      console.log('Building updated successfully');
-      return res.json({
-        message: 'Edificio actualizado exitosamente',
-        building
-      });
-    }
-
-    console.log('Updating with floors');
-    // Si se actualizan floors también (actualización completa)
-    // Eliminar pisos y apartamentos existentes
-    await prisma.apartment.deleteMany({
-      where: {
-        floor: {
-          buildingId: id
-        }
-      }
-    });
-
-    await prisma.floor.deleteMany({
-      where: {
-        buildingId: id
-      }
-    });
-
-    // Actualizar edificio con nuevos datos y floors
-    const building = await prisma.building.update({
-      where: { id },
+    // Crear la torre con niveles y departamentos
+    const nuevaTorre = await prisma.torres.create({
       data: {
-        name,
-        description,
-        floors: {
-          create: floors.map(floor => ({
-            name: floor.name,
-            number: floor.number || floors.indexOf(floor) + 1,
-            apartments: {
+        letra: name,
+        descripcion: description,
+        niveles: {
+          create: (floors || []).map(floor => ({
+            nombre: floor.name,
+            numero: floor.number,
+            departamentos: {
               create: (floor.apartments || []).map(aptNumber => ({
-                number: aptNumber
+                nombre: aptNumber,
+                descripcion: `Departamento ${aptNumber}`
               }))
             }
           }))
         }
       },
       include: {
-        floors: {
+        niveles: {
           include: {
-            apartments: true
+            departamentos: true
           },
           orderBy: {
-            number: 'asc'
+            numero: 'asc'
           }
         }
       }
     });
 
-    console.log('Building with floors updated successfully');
-    res.json({
-      message: 'Edificio actualizado exitosamente',
-      building
+    console.log('Torre creada exitosamente:', nuevaTorre.id_torre);
+
+    const formattedBuilding = {
+      id: nuevaTorre.id_torre,
+      name: nuevaTorre.letra,
+      description: nuevaTorre.descripcion,
+      floors: nuevaTorre.niveles.map(nivel => ({
+        id: nivel.id_nivel,
+        name: nivel.nombre,
+        number: nivel.numero,
+        apartments: nivel.departamentos.map(dept => dept.nombre)
+      })),
+      totalApartments: nuevaTorre.niveles.reduce((total, nivel) => total + nivel.departamentos.length, 0),
+      totalResidents: 0
+    };
+
+    res.status(201).json({
+      message: 'Torre creada exitosamente',
+      building: formattedBuilding
     });
+
   } catch (error) {
-    console.error('Error al actualizar edificio:', error);
-    console.error('Error stack:', error.stack);
-    res.status(500).json({ error: 'Error interno del servidor', details: error.message });
+    console.error('Error al crear torre:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
-// Eliminar edificio
+// Actualizar torre
+router.put('/:id', authMiddleware, async (req, res) => {
+  try {
+    console.log('=== PUT /buildings/:id ===');
+    const { id } = req.params;
+    const { name, description, floors } = req.body;
+
+    console.log('ID de torre a actualizar:', id);
+    console.log('Datos recibidos:', { name, description, floors });
+    console.log('Tipo de ID:', typeof id);
+    console.log('Usuario:', req.user);
+
+    // Verificar que es admin
+    if (req.user.role !== 'ADMIN') {
+      console.log('❌ Acceso denegado - rol:', req.user.role);
+      return res.status(403).json({ error: 'Acceso denegado' });
+    }
+
+    // Validar campos requeridos
+    if (!name || !description) {
+      console.log('❌ Campos faltantes - name:', name, 'description:', description);
+      return res.status(400).json({ error: 'Nombre y descripción son requeridos' });
+    }
+
+    console.log('✅ Validaciones básicas pasadas');
+
+    // Obtener la torre actual
+    console.log('🔍 Buscando torre con ID:', id);
+    const existingTorre = await prisma.torres.findUnique({
+      where: { id_torre: id },
+      include: {
+        niveles: {
+          include: {
+            departamentos: true
+          }
+        }
+      }
+    });
+
+    if (!existingTorre) {
+      console.log('❌ Torre no encontrada con ID:', id);
+      return res.status(404).json({ error: 'Torre no encontrada' });
+    }
+
+    console.log('✅ Torre existente encontrada:', existingTorre.letra);
+
+    // Actualizar información básica de la torre
+    console.log('🔄 Actualizando información básica de la torre...');
+    await prisma.torres.update({
+      where: { id_torre: id },
+      data: {
+        letra: name,
+        descripcion: description
+      }
+    });
+
+    console.log('✅ Información básica de torre actualizada');
+
+    // Procesar los pisos/niveles
+    if (floors && Array.isArray(floors)) {
+      console.log('🏗️ Procesando', floors.length, 'pisos');
+      console.log('📋 Floors data:', JSON.stringify(floors, null, 2));
+
+      // Eliminar niveles y departamentos existentes para recrearlos
+      console.log('🗑️ Eliminando departamentos existentes...');
+      const deletedDepartamentos = await prisma.departamentos.deleteMany({
+        where: {
+          id_torre: id
+        }
+      });
+      console.log('✅ Departamentos eliminados:', deletedDepartamentos.count);
+
+      console.log('🗑️ Eliminando niveles existentes...');
+      const deletedNiveles = await prisma.niveles.deleteMany({
+        where: {
+          id_torre: id
+        }
+      });
+      console.log('✅ Niveles eliminados:', deletedNiveles.count);
+
+      // Crear nuevos niveles y departamentos
+      for (let i = 0; i < floors.length; i++) {
+        const floorData = floors[i];
+        console.log(`🏗️ Creando nivel ${i + 1}:`, {
+          name: floorData.name, 
+          number: floorData.number,
+          apartmentsCount: floorData.apartments?.length || 0
+        });
+
+        const nivel = await prisma.niveles.create({
+          data: {
+            nombre: floorData.name,
+            numero: floorData.number,
+            id_torre: id
+          }
+        });
+
+        console.log('✅ Nivel creado:', nivel.id_nivel);
+
+        // Crear departamentos para este nivel
+        if (floorData.apartments && floorData.apartments.length > 0) {
+          console.log(`🏠 Creando ${floorData.apartments.length} departamentos para nivel ${floorData.number}`);
+          
+          for (let j = 0; j < floorData.apartments.length; j++) {
+            const apartmentNumber = floorData.apartments[j];
+            console.log(`🏠 Creando departamento ${j + 1}: "${apartmentNumber}"`);
+            
+            await prisma.departamentos.create({
+              data: {
+                nombre: apartmentNumber,
+                descripcion: `Departamento ${apartmentNumber}`,
+                id_torre: id,
+                id_nivel: nivel.id_nivel
+              }
+            });
+            console.log(`✅ Departamento creado: ${apartmentNumber}`);
+          }
+        } else {
+          console.log('ℹ️ No hay departamentos para crear en este nivel');
+        }
+      }
+    } else {
+      console.log('ℹ️ No se actualizaron los pisos (floors vacío o no es array)');
+    }
+
+    // Obtener la torre actualizada con toda la información
+    const torreActualizada = await prisma.torres.findUnique({
+      where: { id_torre: id },
+      include: {
+        niveles: {
+          include: {
+            departamentos: true
+          },
+          orderBy: {
+            numero: 'asc'
+          }
+        }
+      }
+    });
+
+    // Formatear respuesta
+    const formattedBuilding = {
+      id: torreActualizada.id_torre,
+      name: torreActualizada.letra,
+      description: torreActualizada.descripcion,
+      floors: torreActualizada.niveles.map(nivel => ({
+        id: nivel.id_nivel,
+        name: nivel.nombre,
+        number: nivel.numero,
+        apartments: nivel.departamentos.map(dept => dept.nombre)
+      })),
+      totalApartments: torreActualizada.niveles.reduce((total, nivel) => total + nivel.departamentos.length, 0),
+      totalResidents: 0
+    };
+
+    console.log('Torre actualizada exitosamente');
+
+    res.json({
+      message: 'Torre actualizada exitosamente',
+      building: formattedBuilding
+    });
+
+  } catch (error) {
+    console.error('Error al actualizar torre:', error);
+    console.error('Stack trace:', error.stack);
+    res.status(500).json({ 
+      error: 'Error interno del servidor', 
+      details: error.message 
+    });
+  }
+});
+
+// Eliminar torre
 router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
@@ -599,110 +389,106 @@ router.delete('/:id', authMiddleware, async (req, res) => {
 
     console.log('✅ Usuario autorizado como admin');
 
-    // Verificar si el edificio existe
-    const building = await prisma.building.findUnique({
-      where: { id },
+    // Verificar si la torre existe
+    const torre = await prisma.torres.findUnique({
+      where: { id_torre: id },
       include: {
-        floors: {
+        niveles: {
           include: {
-            apartments: true
+            departamentos: true
           }
         }
       }
     });
 
-    if (!building) {
-      console.log('❌ Edificio no encontrado');
-      return res.status(404).json({ error: 'Edificio no encontrado' });
+    if (!torre) {
+      console.log('❌ Torre no encontrada');
+      return res.status(404).json({ error: 'Torre no encontrada' });
     }
 
-    console.log(`📊 Edificio encontrado: ${building.name}`);
-    console.log(`📊 Pisos: ${building.floors.length}`);
-    console.log(`📊 Apartamentos totales: ${building.floors.reduce((total, floor) => total + floor.apartments.length, 0)}`);
+    console.log(`📊 Torre encontrada: ${torre.letra}`);
+    console.log(`📊 Niveles: ${torre.niveles.length}`);
+    console.log(`📊 Departamentos totales: ${torre.niveles.reduce((total, nivel) => total + nivel.departamentos.length, 0)}`);
 
-    // Verificar si hay residentes en el edificio y desasignarlos
-    const residentsInBuilding = await prisma.resident.findMany({
-      where: { buildingId: id },
-      select: { id: true, nombre: true, apellido: true }
-    });
-
-    console.log(`👥 Residentes encontrados en el edificio: ${residentsInBuilding.length}`);
-
-    let desassignedResidents = [];
+    // Eliminar imágenes físicas de la torre antes de eliminar de la base de datos
+    const torreDir = path.join('public', 'torres', id);
+    console.log(`🗂️ Verificando carpeta de imágenes: ${torreDir}`);
     
-    if (residentsInBuilding.length > 0) {
-      console.log(`🔄 Desasignando ${residentsInBuilding.length} residentes...`);
-      
-      // Desasignar residentes del edificio (poner campos como null)
-      const updateResult = await prisma.resident.updateMany({
-        where: { buildingId: id },
-        data: {
-          buildingId: null,
-          apartmentId: null
-        }
-      });
-      
-      desassignedResidents = residentsInBuilding.map(r => `${r.nombre} ${r.apellido}`);
-      console.log(`✅ ${updateResult.count} residentes desasignados del edificio`);
-    } else {
-      console.log('ℹ️ No hay residentes para desasignar');
-    }
-
-    // Eliminar imágenes físicas del edificio antes de eliminar de la base de datos
-    const buildingDir = path.join('public', 'edificios', id);
-    console.log(`🗂️ Verificando carpeta de imágenes: ${buildingDir}`);
-    
-    if (fs.existsSync(buildingDir)) {
-      console.log(`🗑️ Eliminando carpeta de imágenes: ${buildingDir}`);
+    if (fs.existsSync(torreDir)) {
+      console.log(`🗑️ Eliminando carpeta de imágenes: ${torreDir}`);
       try {
-        // Eliminar toda la carpeta del edificio recursivamente
-        fs.rmSync(buildingDir, { recursive: true, force: true });
-        console.log(`✅ Carpeta eliminada exitosamente: ${buildingDir}`);
+        fs.rmSync(torreDir, { recursive: true, force: true });
+        console.log(`✅ Carpeta eliminada exitosamente: ${torreDir}`);
       } catch (fileError) {
         console.error('❌ Error al eliminar carpeta de imágenes:', fileError);
-        // Continúa con la eliminación de la base de datos aunque falle la eliminación de archivos
       }
     } else {
-      console.log(`ℹ️ No se encontró carpeta de imágenes para el edificio: ${buildingDir}`);
+      console.log(`ℹ️ No se encontró carpeta de imágenes para la torre: ${torreDir}`);
     }
 
-    // Eliminar edificio de la base de datos (Prisma eliminará automáticamente pisos y apartamentos por la cascada)
-    console.log(`🗑️ Eliminando edificio de la base de datos...`);
-    await prisma.building.delete({
-      where: { id }
+    // Eliminar departamentos primero
+    await prisma.departamentos.deleteMany({
+      where: { id_torre: id }
     });
 
-    console.log(`✅ Edificio ${id} eliminado exitosamente`);
-    
-    const responseMessage = desassignedResidents.length > 0 
-      ? `Edificio eliminado exitosamente. ${desassignedResidents.length} residentes fueron desasignados: ${desassignedResidents.join(', ')}`
-      : 'Edificio eliminado exitosamente';
+    // Eliminar niveles
+    await prisma.niveles.deleteMany({
+      where: { id_torre: id }
+    });
+
+    // Eliminar torre
+    await prisma.torres.delete({
+      where: { id_torre: id }
+    });
+
+    console.log(`✅ Torre ${id} eliminada exitosamente`);
     
     res.json({
-      message: responseMessage,
-      desassignedResidents: desassignedResidents
+      message: 'Torre eliminada exitosamente'
     });
   } catch (error) {
-    console.error('❌ Error al eliminar edificio:', error);
-    
-    // Analizar el tipo de error
-    if (error.code === 'P2003') {
-      console.error('❌ Error de restricción de clave foránea');
-      return res.status(400).json({ 
-        error: 'No se puede eliminar el edificio debido a restricciones de base de datos',
-        details: 'Existen relaciones que impiden la eliminación'
-      });
-    }
+    console.error('❌ Error al eliminar torre:', error);
     
     if (error.code === 'P2025') {
       console.error('❌ Registro no encontrado');
       return res.status(404).json({ 
-        error: 'Edificio no encontrado' 
+        error: 'Torre no encontrada' 
       });
     }
     
     console.error('❌ Error general:', error.message);
     res.status(500).json({ error: 'Error interno del servidor', details: error.message });
+  }
+});
+
+// Subir imagen para torre
+router.post('/:id/upload-image', authMiddleware, upload.single('image'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    if (req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Acceso denegado' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'No se proporcionó imagen' });
+    }
+
+    const imagePath = `/edificios/${id}/${req.file.filename}`;
+    
+    // Actualizar la torre con la nueva imagen
+    await prisma.torres.update({
+      where: { id_torre: id },
+      data: { imagen: imagePath }
+    });
+
+    res.json({
+      message: 'Imagen subida exitosamente',
+      imagePath
+    });
+  } catch (error) {
+    console.error('Error al subir imagen:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
