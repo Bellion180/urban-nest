@@ -1,13 +1,12 @@
 import express from 'express';
 import { prisma } from '../../src/lib/prisma.js';
-import { authMiddleware } from '../middleware/auth.js';
 
 const router = express.Router();
 
 console.log('🏠 Cargando rutas de companeros...');
 
 // Obtener todos los compañeros
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     console.log('🔍 API: Endpoint /companeros called');
     
@@ -223,6 +222,11 @@ router.get('/building/:buildingId/floor/:floorNumber', async (req, res) => {
 // Crear nuevo compañero
 router.post('/', async (req, res) => {
   try {
+    console.log('=== POST /companeros ===');
+    console.log('Request body:', req.body);
+    console.log('Usuario:', req.user);
+    console.log('Headers:', req.headers);
+    
     const {
       nombre,
       apellidos,
@@ -234,22 +238,40 @@ router.post('/', async (req, res) => {
       id_departamento
     } = req.body;
 
+    console.log('Datos extraídos:', {
+      nombre,
+      apellidos,
+      fecha_nacimiento,
+      no_personas,
+      no_des_per,
+      recibo_apoyo,
+      no_apoyo,
+      id_departamento
+    });
+
     // Verificar que es admin
     if (req.user.role !== 'ADMIN') {
+      console.log('❌ Acceso denegado - rol:', req.user.role);
       return res.status(403).json({ error: 'Acceso denegado' });
     }
 
+    console.log('✅ Usuario autorizado como admin');
+
     // Verificar que el departamento existe
     if (id_departamento) {
+      console.log('🔍 Verificando departamento:', id_departamento);
       const departamento = await prisma.departamentos.findUnique({
         where: { id_departamento }
       });
       
       if (!departamento) {
+        console.log('❌ Departamento no encontrado:', id_departamento);
         return res.status(400).json({ error: 'Departamento no encontrado' });
       }
+      console.log('✅ Departamento encontrado:', departamento.nombre);
     }
 
+    console.log('🔧 Creando compañero...');
     const companero = await prisma.companeros.create({
       data: {
         nombre,
@@ -260,7 +282,7 @@ router.post('/', async (req, res) => {
         recibo_apoyo,
         no_apoyo: no_apoyo ? parseInt(no_apoyo) : null,
         id_departamento,
-        createdById: req.user.userId
+        createdById: req.user.id
       },
       include: {
         departamento: {
@@ -272,13 +294,19 @@ router.post('/', async (req, res) => {
       }
     });
 
+    console.log('✅ Compañero creado exitosamente:', companero.id_companero);
+
     res.status(201).json({
       message: 'Compañero creado exitosamente',
       companero
     });
   } catch (error) {
-    console.error('Error al crear compañero:', error);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    console.error('❌ Error al crear compañero:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({ 
+      error: 'Error interno del servidor',
+      details: error.message
+    });
   }
 });
 

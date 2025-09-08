@@ -33,17 +33,25 @@ const corsOptions = {
 // Aplica CORS a todas las rutas
 app.use(cors(corsOptions));
 
+console.log('🔧 Configurando middlewares...');
+
+// ENDPOINT DE PRUEBA MUY TEMPRANO
+app.get('/api/early-test', (req, res) => {
+  console.log('🧪 EARLY TEST recibido');
+  res.json({ message: 'Early test funciona!' });
+});
+
+// Log de todas las peticiones (PRIMER middleware)
+app.use((req, res, next) => {
+  console.log(`📝 ${new Date().toISOString()} - ${req.method} ${req.path}`);
+  console.log('📝 Headers:', req.headers);
+  console.log('📝 Body:', req.body);
+  next();
+});
+
 // Middlewares
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-// Log de todas las peticiones (antes de archivos estáticos para debug)
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
-  console.log('Headers:', req.headers);
-  console.log('Body:', req.body);
-  next();
-});
 
 app.use(express.static('public'));
 
@@ -58,6 +66,17 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development'
   });
+});
+
+// Endpoint de prueba SIN autenticación
+app.get('/api/test-companeros-get', (req, res) => {
+  console.log('🧪 TEST GET recibido');
+  res.json({ message: 'Test GET exitoso' });
+});
+
+app.post('/api/test-companeros', (req, res) => {
+  console.log('🧪 TEST POST recibido:', req.body);
+  res.json({ message: 'Test exitoso', data: req.body });
 });
 
 // Endpoint específico para servir documentos
@@ -91,8 +110,8 @@ app.get('/api/debug/companeros', (req, res) => {
   res.json({ message: 'Companeros debug route works!', timestamp: new Date().toISOString() });
 });
 
-// Rutas protegidas - Nuevas rutas principales (temporalmente sin auth para debug)
-app.use('/api/companeros', companerosRoutes);
+// Rutas protegidas - Nuevas rutas principales 
+app.use('/api/companeros', authMiddleware, companerosRoutes);
 app.use('/api/torres', torresRoutes);
 app.use('/api/niveles', nivelesRoutes);
 

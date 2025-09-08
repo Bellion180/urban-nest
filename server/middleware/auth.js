@@ -3,6 +3,9 @@ import { prisma } from '../../src/lib/prisma.js';
 
 export const authMiddleware = async (req, res, next) => {
   try {
+    console.log(`🔐 Auth middleware - ${req.method} ${req.path}`);
+    console.log('🔐 Headers:', req.headers.authorization);
+    
     // Obtener token del encabezado Authorization
     const token = req.headers.authorization?.replace('Bearer ', '');
     
