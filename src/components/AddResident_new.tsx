@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Loader2, Plus, User, DollarSign, FileText } from 'lucide-react';
+import { ArrowLeft, Loader2, Plus, User, DollarSign, FileText, X } from 'lucide-react';
 import Header from './Header';
 import { toast } from '@/hooks/use-toast';
 import { buildingService, residentService } from '@/services/api';
@@ -50,13 +50,20 @@ const AddResident = () => {
     // Información financiera
     deudaActual: '',
     pagosRealizados: '',
+    fechasPagos: [''], // Array de fechas de pagos
     
     // Información INVI
     idInvi: '',
     mensualidades: '',
     fechaContrato: '',
     deuda: '',
-    idCompanero: ''
+    
+    // Información Tlaxilacalli
+    numero: '', // Antes era idCompanero
+    exp: '',
+    estacionamiento: false,
+    montoEstacionamiento: '',
+    apoyoRenta: false
   });
 
   // Cargar edificios al montar el componente
@@ -91,12 +98,63 @@ const AddResident = () => {
       if (field === 'discapacidad' && !value) {
         newData.noPersonasDiscapacitadas = '';
       }
+
+      // Si se desmarca estacionamiento, limpiar el monto
+      if (field === 'estacionamiento' && !value) {
+        newData.montoEstacionamiento = '';
+      }
       
       return newData;
     });
   };
 
-  // Funciones para manejar las selecciones
+  // Función para manejar fechas de pagos múltiples
+  const handlePaymentDateChange = (index: number, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      fechasPagos: prev.fechasPagos.map((fecha, i) => 
+        i === index ? value : fecha
+      )
+    }));
+  };
+
+  const addPaymentDate = () => {
+    setFormData(prev => ({
+      ...prev,
+      fechasPagos: [...prev.fechasPagos, '']
+    }));
+  };
+
+  const removePaymentDate = (index: number) => {
+    if (formData.fechasPagos.length > 1) {
+      setFormData(prev => ({
+        ...prev,
+        fechasPagos: prev.fechasPagos.filter((_, i) => i !== index)
+      }));
+    }
+  };
+
+  // Cargar edificios al montar el componente
+  useEffect(() => {
+    const loadBuildings = async () => {
+      try {
+        const data = await buildingService.getAll();
+        setBuildings(data);
+      } catch (error) {
+        console.error('Error loading buildings:', error);
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los edificios",
+          variant: "destructive"
+        });
+      } finally {
+        setLoadingBuildings(false);
+      }
+    };
+
+    loadBuildings();
+  }, []);
+
   const getFloorsForBuilding = () => {
     const building = buildings.find(b => b.id === selectedBuilding);
     return building?.floors || [];
@@ -150,6 +208,7 @@ const AddResident = () => {
         // Información financiera
         deudaActual: formData.deudaActual ? parseFloat(formData.deudaActual) : 0,
         pagosRealizados: formData.pagosRealizados ? parseFloat(formData.pagosRealizados) : 0,
+        fechasPagos: formData.fechasPagos.filter(fecha => fecha !== ''), // Solo fechas no vacías
         
         // Información de ubicación
         apartmentNumber: selectedApartment,
@@ -163,7 +222,15 @@ const AddResident = () => {
           mensualidades: formData.mensualidades ? parseInt(formData.mensualidades) : undefined,
           fechaContrato: formData.fechaContrato || undefined,
           deuda: formData.deuda ? parseFloat(formData.deuda) : 0,
-          idCompanero: formData.idCompanero || undefined
+        },
+
+        // Información Tlaxilacalli
+        tlaxilacalliInfo: {
+          numero: formData.numero || undefined,
+          exp: formData.exp || undefined,
+          estacionamiento: formData.estacionamiento,
+          montoEstacionamiento: formData.montoEstacionamiento ? parseFloat(formData.montoEstacionamiento) : 0,
+          apoyoRenta: formData.apoyoRenta
         }
       };
 
@@ -220,7 +287,7 @@ const AddResident = () => {
             ) : (
               <form onSubmit={handleSubmit} className="space-y-6">
                 <Tabs defaultValue="personal" className="w-full">
-                  <TabsList className="grid w-full grid-cols-3">
+                  <TabsList className="grid w-full grid-cols-4">
                     <TabsTrigger value="personal" className="flex items-center gap-2">
                       <User className="h-4 w-4" />
                       Personal
@@ -232,6 +299,10 @@ const AddResident = () => {
                     <TabsTrigger value="invi" className="flex items-center gap-2">
                       <FileText className="h-4 w-4" />
                       INVI
+                    </TabsTrigger>
+                    <TabsTrigger value="tlaxilacalli" className="flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      Tlaxilacalli
                     </TabsTrigger>
                   </TabsList>
 
@@ -353,212 +424,4 @@ const AddResident = () => {
                       <Label htmlFor="profilePhoto">Foto de Perfil</Label>
                       <Input 
                         id="profilePhoto" 
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => setProfilePhoto(e.target.files?.[0] || null)}
-                        className="cursor-pointer"
-                      />
-                      {profilePhoto && (
-                        <p className="text-sm text-green-600">
-                          Archivo seleccionado: {profilePhoto.name}
-                        </p>
-                      )}
-                    </div>
-                  </TabsContent>
-
-                  {/* Información Financiera */}
-                  <TabsContent value="financiera" className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="deudaActual">Deuda Actual ($)</Label>
-                        <Input 
-                          id="deudaActual" 
-                          type="number"
-                          step="0.01"
-                          placeholder="0.00" 
-                          value={formData.deudaActual}
-                          onChange={(e) => handleInputChange('deudaActual', e.target.value)}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="pagosRealizados">Pagos Realizados ($)</Label>
-                        <Input 
-                          id="pagosRealizados" 
-                          type="number"
-                          step="0.01"
-                          placeholder="0.00" 
-                          value={formData.pagosRealizados}
-                          onChange={(e) => handleInputChange('pagosRealizados', e.target.value)}
-                        />
-                      </div>
-                    </div>
-                  </TabsContent>
-
-                  {/* Información INVI */}
-                  <TabsContent value="invi" className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="idInvi">ID INVI</Label>
-                        <Input 
-                          id="idInvi" 
-                          placeholder="Identificador INVI" 
-                          value={formData.idInvi}
-                          onChange={(e) => handleInputChange('idInvi', e.target.value)}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="mensualidades">Mensualidades</Label>
-                        <Input 
-                          id="mensualidades" 
-                          type="number"
-                          placeholder="Número de mensualidades" 
-                          value={formData.mensualidades}
-                          onChange={(e) => handleInputChange('mensualidades', e.target.value)}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="fechaContrato">Fecha de Contrato</Label>
-                        <Input 
-                          id="fechaContrato" 
-                          type="date" 
-                          value={formData.fechaContrato}
-                          onChange={(e) => handleInputChange('fechaContrato', e.target.value)}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="deuda">Deuda INVI ($)</Label>
-                        <Input 
-                          id="deuda" 
-                          type="number"
-                          step="0.01"
-                          placeholder="0.00" 
-                          value={formData.deuda}
-                          onChange={(e) => handleInputChange('deuda', e.target.value)}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="idCompanero">ID Compañero</Label>
-                        <Input 
-                          id="idCompanero" 
-                          placeholder="ID del compañero" 
-                          value={formData.idCompanero}
-                          onChange={(e) => handleInputChange('idCompanero', e.target.value)}
-                        />
-                      </div>
-                    </div>
-                  </TabsContent>
-                </Tabs>
-
-                {/* Selección de Ubicación */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Ubicación</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="edificio">Edificio *</Label>
-                      <Select value={selectedBuilding} onValueChange={setSelectedBuilding}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar edificio" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {buildings.map((building) => (
-                            <SelectItem key={building.id} value={building.id}>
-                              {building.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="piso">Piso *</Label>
-                      <Select 
-                        value={selectedFloor} 
-                        onValueChange={setSelectedFloor}
-                        disabled={!selectedBuilding}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar piso" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {getFloorsForBuilding().map((floor) => (
-                            <SelectItem key={floor.id} value={floor.id}>
-                              {floor.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="apartamento">Apartamento *</Label>
-                      <Select 
-                        value={selectedApartment} 
-                        onValueChange={setSelectedApartment}
-                        disabled={!selectedFloor}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar apartamento" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {getApartmentsForFloor().map((apartment) => (
-                            <SelectItem key={apartment} value={apartment}>
-                              {apartment}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Botones */}
-                <div className="flex gap-4 pt-6">
-                  {isAdmin && (
-                    <Button 
-                      type="submit" 
-                      disabled={loading || !selectedApartment}
-                      className="bg-tlahuacali-red hover:bg-tlahuacali-red/90"
-                    >
-                      {loading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Agregando...
-                        </>
-                      ) : (
-                        <>
-                          <Plus className="mr-2 h-4 w-4" />
-                          Agregar Residente
-                        </>
-                      )}
-                    </Button>
-                  )}
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={() => navigate('/admin')}
-                    disabled={loading}
-                  >
-                    Cancelar
-                  </Button>
-                </div>
-
-                {!isAdmin && (
-                  <div className="text-center py-4 text-red-600">
-                    Solo los administradores pueden agregar residentes
-                  </div>
-                )}
-              </form>
-            )}
-          </CardContent>
-        </Card>
-      </main>
-    </div>
-  );
-};
-
-export default AddResident;
+   
