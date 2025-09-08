@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Loader2, Plus, User, DollarSign, FileText, Upload } from 'lucide-react';
+import { ArrowLeft, Loader2, Plus, User, DollarSign, FileText, Upload, X } from 'lucide-react';
 import Header from './Header';
 import { toast } from '@/hooks/use-toast';
 import { buildingService, residentService } from '@/services/api';
@@ -52,6 +52,8 @@ const AddResident = () => {
     }));
   };
 
+  const [salidas, setSalidas] = useState<string[]>(['']);
+
   const [formData, setFormData] = useState({
     // Información personal
     nombre: '',
@@ -70,23 +72,24 @@ const AddResident = () => {
   veladas: '',
   aportaciones: '',
   faenas: '',
-  salidas: '',
   id_compañeros: '',
   // Información INVI
   idInvi: '',
   mensualidades: '',
   fechaContrato: '',
   deuda: '',
-  idCompanero: '',
   // Información Tlaxilacalli
   Excedente: '',
   Aport: '',
   Deuda: '',
-  Estacionamiento: '',
+  Estacionamiento: false,
+  EstacionamientoDeuda: '',
   Aportacion: '',
   Aportacion_Deuda: '',
-  Apoyo_renta: '',
-  Comentarios: ''
+  Apoyo_renta: false,
+  Comentarios: '',
+  Numero: '',
+  Exp: ''
   });
 
   // Cargar edificios al montar el componente
@@ -110,6 +113,23 @@ const AddResident = () => {
     loadBuildings();
   }, []);
 
+  // Funciones para manejar salidas múltiples
+  const addSalida = () => {
+    setSalidas([...salidas, '']);
+  };
+
+  const removeSalida = (index: number) => {
+    if (salidas.length > 1) {
+      setSalidas(salidas.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateSalida = (index: number, value: string) => {
+    const newSalidas = [...salidas];
+    newSalidas[index] = value;
+    setSalidas(newSalidas);
+  };
+
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => {
       const newData = {
@@ -120,6 +140,11 @@ const AddResident = () => {
       // Si se desmarca la discapacidad, limpiar el número de personas discapacitadas
       if (field === 'discapacidad' && !value) {
         newData.noPersonasDiscapacitadas = '';
+      }
+
+      // Si se desmarca estacionamiento, limpiar la deuda
+      if (field === 'Estacionamiento' && !value) {
+        newData.EstacionamientoDeuda = '';
       }
       
       return newData;
@@ -180,7 +205,7 @@ const AddResident = () => {
       form.append('financiero.veladas', formData.veladas);
       form.append('financiero.aportaciones', formData.aportaciones);
       form.append('financiero.faenas', formData.faenas);
-      form.append('financiero.salidas', formData.salidas);
+      form.append('financiero.salidas', JSON.stringify(salidas.filter(fecha => fecha.trim() !== '')));
       form.append('financiero.id_compañeros', formData.id_compañeros ? formData.id_compañeros.toString() : '');
       // Información de ubicación
       form.append('apartmentNumber', selectedApartment);
@@ -192,24 +217,27 @@ const AddResident = () => {
       Object.entries(documents).forEach(([key, file]) => {
         if (file) form.append(`documents_${key}`, file);
       });
-      // Información INVI
+      // Información INVI - usar el mismo id_compañeros de financiero
       form.append('inviInfo', JSON.stringify({
         idInvi: formData.idInvi || '',
         mensualidades: formData.mensualidades ? parseInt(formData.mensualidades) : undefined,
         fechaContrato: formData.fechaContrato || '',
         deuda: formData.deuda ? parseFloat(formData.deuda) : 0,
-        idCompanero: formData.idCompanero || ''
+        idCompanero: formData.id_compañeros || ''
       }));
       // Información Tlaxilacalli
       form.append('tlaxilacalliInfo', JSON.stringify({
         Excedente: formData.Excedente ? parseInt(formData.Excedente) : null,
         Aport: formData.Aport ? parseInt(formData.Aport) : null,
         Deuda: formData.Deuda ? parseInt(formData.Deuda) : null,
-        Estacionamiento: formData.Estacionamiento ? parseInt(formData.Estacionamiento) : null,
+        Estacionamiento: formData.Estacionamiento,
+        EstacionamientoDeuda: formData.Estacionamiento ? (formData.EstacionamientoDeuda ? parseFloat(formData.EstacionamientoDeuda) : null) : null,
         Aportacion: formData.Aportacion ? parseInt(formData.Aportacion) : null,
         Aportacion_Deuda: formData.Aportacion_Deuda ? parseInt(formData.Aportacion_Deuda) : null,
-        Apoyo_renta: formData.Apoyo_renta || '',
-        Comentarios: formData.Comentarios || ''
+        Apoyo_renta: formData.Apoyo_renta,
+        Comentarios: formData.Comentarios || '',
+        Numero: formData.Numero || '',
+        Exp: formData.Exp ? parseInt(formData.Exp) : null
       }));
 
       // Crear el residente usando el servicio
@@ -292,6 +320,26 @@ const AddResident = () => {
                   <TabsContent value="tlaxilacalli" className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
+                        <Label htmlFor="Numero">Número</Label>
+                        <Input 
+                          id="Numero" 
+                          type="text" 
+                          placeholder="Número" 
+                          value={formData.Numero} 
+                          onChange={e => handleInputChange('Numero', e.target.value)} 
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="Exp">Exp</Label>
+                        <Input 
+                          id="Exp" 
+                          type="number" 
+                          placeholder="Exp" 
+                          value={formData.Exp} 
+                          onChange={e => handleInputChange('Exp', e.target.value)} 
+                        />
+                      </div>
+                      <div className="space-y-2">
                         <Label htmlFor="Excedente">Excedente</Label>
                         <Input id="Excedente" type="number" placeholder="Excedente" value={formData.Excedente} onChange={e => handleInputChange('Excedente', e.target.value)} />
                       </div>
@@ -304,9 +352,33 @@ const AddResident = () => {
                         <Input id="Deuda" type="number" placeholder="Deuda" value={formData.Deuda} onChange={e => handleInputChange('Deuda', e.target.value)} />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="Estacionamiento">Estacionamiento</Label>
-                        <Input id="Estacionamiento" type="number" placeholder="Estacionamiento" value={formData.Estacionamiento} onChange={e => handleInputChange('Estacionamiento', e.target.value)} />
+                        <Label htmlFor="Estacionamiento">¿Tiene Estacionamiento?</Label>
+                        <Select 
+                          value={formData.Estacionamiento ? 'true' : 'false'}
+                          onValueChange={(value) => handleInputChange('Estacionamiento', value === 'true')}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleccionar" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="false">No</SelectItem>
+                            <SelectItem value="true">Sí</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
+                      {formData.Estacionamiento && (
+                        <div className="space-y-2">
+                          <Label htmlFor="EstacionamientoDeuda">¿Cuánto debe de Estacionamiento?</Label>
+                          <Input 
+                            id="EstacionamientoDeuda" 
+                            type="number" 
+                            step="0.01"
+                            placeholder="0.00" 
+                            value={formData.EstacionamientoDeuda} 
+                            onChange={e => handleInputChange('EstacionamientoDeuda', e.target.value)} 
+                          />
+                        </div>
+                      )}
                       <div className="space-y-2">
                         <Label htmlFor="Aportacion">Aportación</Label>
                         <Input id="Aportacion" type="number" placeholder="Aportación" value={formData.Aportacion} onChange={e => handleInputChange('Aportacion', e.target.value)} />
@@ -316,21 +388,43 @@ const AddResident = () => {
                         <Input id="Aportacion_Deuda" type="number" placeholder="Aportación Deuda" value={formData.Aportacion_Deuda} onChange={e => handleInputChange('Aportacion_Deuda', e.target.value)} />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="Apoyo_renta">Apoyo Renta</Label>
-                        <Input id="Apoyo_renta" type="text" placeholder="Apoyo Renta" value={formData.Apoyo_renta} onChange={e => handleInputChange('Apoyo_renta', e.target.value)} />
+                        <Label htmlFor="Apoyo_renta">¿Tiene Apoyo de Renta?</Label>
+                        <Select 
+                          value={formData.Apoyo_renta ? 'true' : 'false'}
+                          onValueChange={(value) => handleInputChange('Apoyo_renta', value === 'true')}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleccionar" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="false">No</SelectItem>
+                            <SelectItem value="true">Sí</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="Comentarios">Comentarios</Label>
                         <Input id="Comentarios" type="text" placeholder="Comentarios" value={formData.Comentarios} onChange={e => handleInputChange('Comentarios', e.target.value)} />
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="id_compañeros">ID Compañeros</Label>
-                        <Input id="id_compañeros" type="number" placeholder="ID Compañeros" value={formData.id_compañeros} onChange={e => handleInputChange('id_compañeros', e.target.value)} />
-                      </div>
                     </div>
                   </TabsContent>
+                  
                   <TabsContent value="personal" className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2 md:col-span-2">
+                        <Label htmlFor="id_compañeros_personal">ID Compañero</Label>
+                        <Input 
+                          id="id_compañeros_personal" 
+                          type="number"
+                          placeholder="ID Compañero" 
+                          value={formData.id_compañeros}
+                          onChange={(e) => handleInputChange('id_compañeros', e.target.value)}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Este ID se utilizará automáticamente en las secciones financiera e INVI
+                        </p>
+                      </div>
+
                       <div className="space-y-2">
                         <Label htmlFor="nombre">Nombre *</Label>
                         <Input 
@@ -463,6 +557,16 @@ const AddResident = () => {
                   <TabsContent value="financiera" className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
+                        <Label htmlFor="id_compañeros">ID Compañeros</Label>
+                        <Input 
+                          id="id_compañeros" 
+                          type="number" 
+                          placeholder="ID Compañeros" 
+                          value={formData.id_compañeros}
+                          onChange={(e) => handleInputChange('id_compañeros', e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
                         <Label htmlFor="deudaActual">Deuda Actual ($)</Label>
                         <Input 
                           id="deudaActual" 
@@ -518,27 +622,46 @@ const AddResident = () => {
                           onChange={(e) => handleInputChange('faenas', e.target.value)}
                         />
                       </div>
+                    </div>
 
-                      <div className="space-y-2">
-                        <Label htmlFor="salidas">Salidas</Label>
-                        <Input 
-                          id="salidas" 
-                          type="text" 
-                          placeholder="Salidas" 
-                          value={formData.salidas}
-                          onChange={(e) => handleInputChange('salidas', e.target.value)}
-                        />
+                    {/* Sección de Salidas con múltiples fechas */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <Label>Salidas (Fechas)</Label>
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm"
+                          onClick={addSalida}
+                          className="flex items-center gap-2"
+                        >
+                          <Plus className="h-4 w-4" />
+                          Agregar Fecha
+                        </Button>
                       </div>
-
                       <div className="space-y-2">
-                        <Label htmlFor="id_compañeros">ID Compañeros</Label>
-                        <Input 
-                          id="id_compañeros" 
-                          type="number" 
-                          placeholder="ID Compañeros" 
-                          value={formData.id_compañeros}
-                          onChange={(e) => handleInputChange('id_compañeros', e.target.value)}
-                        />
+                        {salidas.map((fecha, index) => (
+                          <div key={index} className="flex items-center gap-2">
+                            <Input
+                              type="date"
+                              value={fecha}
+                              onChange={(e) => updateSalida(index, e.target.value)}
+                              className="flex-1"
+                              placeholder="Seleccionar fecha"
+                            />
+                            {salidas.length > 1 && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => removeSalida(index)}
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </TabsContent>
@@ -546,6 +669,20 @@ const AddResident = () => {
                   {/* Información INVI */}
                   <TabsContent value="invi" className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2 md:col-span-2">
+                        <Label htmlFor="idCompanero">ID Compañero</Label>
+                        <Input 
+                          id="idCompanero" 
+                          placeholder="ID del compañero" 
+                          value={formData.id_compañeros}
+                          disabled
+                          className="bg-gray-50"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Este campo se completa automáticamente desde la información financiera
+                        </p>
+                      </div>
+                      
                       <div className="space-y-2">
                         <Label htmlFor="idInvi">ID INVI</Label>
                         <Input 
@@ -586,16 +723,6 @@ const AddResident = () => {
                           placeholder="0.00" 
                           value={formData.deuda}
                           onChange={(e) => handleInputChange('deuda', e.target.value)}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="idCompanero">ID Compañero</Label>
-                        <Input 
-                          id="idCompanero" 
-                          placeholder="ID del compañero" 
-                          value={formData.idCompanero}
-                          onChange={(e) => handleInputChange('idCompanero', e.target.value)}
                         />
                       </div>
                     </div>
