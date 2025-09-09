@@ -3,6 +3,7 @@ model Torres {
   id_torre      String         @id @default(cuid())
   letra         String
   descripcion   String?
+  imagen        String?        // Campo para la imagen del edificio
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
@@ -73,6 +74,7 @@ model User {
 // Modelo básico de Departamentos
 model Departamentos {
   id_departamento String   @id @default(cuid())
+  no_departamento String   // Campo que faltaba en el schema
   nombre          String
   descripcion     String?
   id_torre        String?

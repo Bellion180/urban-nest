@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -404,6 +404,9 @@ const BuildingManagement: React.FC<BuildingManagementProps> = ({ isOpen, onClose
             <Building className="h-5 w-5" />
             Gestión de Edificios
           </DialogTitle>
+          <DialogDescription>
+            Administra los edificios del conjunto, sus pisos y departamentos
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">

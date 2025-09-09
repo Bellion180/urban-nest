@@ -1,0 +1,26 @@
+// Test usando PowerShell y curl 
+console.log('🎯 PRUEBA FINAL - CREACIÓN DE EDIFICIOS');
+console.log('');
+console.log('✅ Estado actual:');
+console.log('   - Backend: http://localhost:3001 (funcionando)');
+console.log('   - Frontend: http://localhost:8080 (funcionando)');  
+console.log('   - Schema de Prisma: ACTUALIZADO con campo no_departamento');
+console.log('   - Cliente de Prisma: REGENERADO');
+console.log('');
+console.log('🧪 Para probar:');
+console.log('   1. Ve a http://localhost:8080');
+console.log('   2. Inicia sesión: admin@urbannest.com / admin123');
+console.log('   3. Ir a "Gestión de Edificios"');
+console.log('   4. Hacer clic en "Nuevo Edificio"');
+console.log('   5. Llenar formulario:');
+console.log('      - Nombre: Edificio Prueba Final');
+console.log('      - Descripción: Test después de actualizar schema');
+console.log('      - Pisos: 2');
+console.log('      - Apartamentos por piso: 4');
+console.log('   6. Hacer clic en "Crear Edificio"');
+console.log('');
+console.log('✅ RESULTADO ESPERADO:');
+console.log('   - ❌ ANTES: Error 500 "Unknown argument no_departamento"');
+console.log('   - ✅ AHORA: Edificio creado exitosamente');
+console.log('');
+console.log('🔍 Si hay algún error, revisar logs del servidor en la terminal donde corre node index.js');

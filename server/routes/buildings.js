@@ -11,26 +11,46 @@ const prisma = new PrismaClient();
 // Configuración de multer para imágenes
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const { type, buildingId, floorId } = req.body;
-    let uploadPath;
+    console.log('🗂️ Multer destination - req.body:', req.body);
+    console.log('🗂️ Multer destination - file:', file);
+    
+    let uploadPath = path.join('public', 'edificios');
 
-    if (type === 'building') {
-      uploadPath = path.join('public', 'edificios', buildingId);
-    } else if (type === 'floor') {
-      uploadPath = path.join('public', 'edificios', buildingId, 'pisos', floorId);
-    } else if (type === 'resident') {
-      uploadPath = path.join('public', 'residentes');
+    try {
+      // Si es para un piso específico, usar la estructura de carpetas correspondiente
+      if (req.body.type === 'floor' && req.body.buildingId && req.body.floorId) {
+        uploadPath = path.join('public', 'edificios', req.body.buildingId, 'pisos', req.body.floorId);
+      } else if (req.body.buildingId) {
+        uploadPath = path.join('public', 'edificios', req.body.buildingId);
+      }
+
+      console.log('🗂️ Upload path determinado:', uploadPath);
+
+      // Crear la carpeta si no existe
+      if (!fs.existsSync(uploadPath)) {
+        console.log('🗂️ Creando directorio:', uploadPath);
+        fs.mkdirSync(uploadPath, { recursive: true });
+        console.log('✅ Directorio creado exitosamente');
+      } else {
+        console.log('✅ Directorio ya existe:', uploadPath);
+      }
+
+      cb(null, uploadPath);
+    } catch (error) {
+      console.error('❌ Error en multer destination:', error);
+      cb(error);
     }
-
-    if (!fs.existsSync(uploadPath)) {
-      fs.mkdirSync(uploadPath, { recursive: true });
-    }
-
-    cb(null, uploadPath);
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+    try {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      const filename = file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname);
+      console.log('📄 Filename generado:', filename);
+      cb(null, filename);
+    } catch (error) {
+      console.error('❌ Error en multer filename:', error);
+      cb(error);
+    }
   }
 });
 
@@ -129,12 +149,29 @@ router.get('/:id', authMiddleware, async (req, res) => {
 });
 
 // Crear nueva torre
-router.post('/', authMiddleware, async (req, res) => {
+router.post('/', authMiddleware, upload.single('image'), async (req, res) => {
   try {
     console.log('=== POST /buildings ===');
-    const { name, description, floors } = req.body;
+    console.log('🔐 Usuario autenticado:', req.user);
+    console.log('📋 Content-Type:', req.headers['content-type']);
+    console.log('📦 Body keys:', Object.keys(req.body));
+    console.log('📦 Body:', req.body);
+    console.log('🗂️ File:', req.file);
+    console.log('📝 Raw headers:', req.headers);
+    
+    let { name, description, floors } = req.body;
 
-    console.log('Datos recibidos:', { name, description, floors });
+    // Si floors viene como string, parsearlo
+    if (typeof floors === 'string') {
+      try {
+        floors = JSON.parse(floors);
+      } catch (parseError) {
+        console.error('Error parsing floors:', parseError);
+        return res.status(400).json({ error: 'Formato de pisos inválido' });
+      }
+    }
+
+    console.log('Datos recibidos:', { name, description, floors: floors || 'no floors' });
 
     // Verificar que es admin
     if (req.user.role !== 'ADMIN') {
@@ -151,6 +188,7 @@ router.post('/', authMiddleware, async (req, res) => {
       data: {
         letra: name,
         descripcion: description,
+        imagen: req.file ? `/edificios/${req.file.filename}` : null,
         niveles: {
           create: (floors || []).map(floor => ({
             nombre: floor.name,
@@ -158,6 +196,7 @@ router.post('/', authMiddleware, async (req, res) => {
             departamentos: {
               create: (floor.apartments || []).map(aptNumber => ({
                 nombre: aptNumber,
+                no_departamento: aptNumber,
                 descripcion: `Departamento ${aptNumber}`
               }))
             }
@@ -182,6 +221,7 @@ router.post('/', authMiddleware, async (req, res) => {
       id: nuevaTorre.id_torre,
       name: nuevaTorre.letra,
       description: nuevaTorre.descripcion,
+      image: nuevaTorre.imagen,
       floors: nuevaTorre.niveles.map(nivel => ({
         id: nivel.id_nivel,
         name: nivel.nombre,
@@ -199,7 +239,8 @@ router.post('/', authMiddleware, async (req, res) => {
 
   } catch (error) {
     console.error('Error al crear torre:', error);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    console.error('Stack:', error.stack);
+    res.status(500).json({ error: 'Error interno del servidor', details: error.message });
   }
 });
 
@@ -313,6 +354,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
             await prisma.departamentos.create({
               data: {
                 nombre: apartmentNumber,
+                no_departamento: apartmentNumber,
                 descripcion: `Departamento ${apartmentNumber}`,
                 id_torre: id,
                 id_nivel: nivel.id_nivel
@@ -488,6 +530,138 @@ router.post('/:id/upload-image', authMiddleware, upload.single('image'), async (
     });
   } catch (error) {
     console.error('Error al subir imagen:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// Subir imagen para piso
+router.post('/:id/pisos/:pisoNumber/image', authMiddleware, upload.single('image'), async (req, res) => {
+  try {
+    console.log(`=== POST /buildings/${req.params.id}/pisos/${req.params.pisoNumber}/image ===`);
+    const { id, pisoNumber } = req.params;
+    
+    if (req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Acceso denegado' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'No se proporcionó imagen' });
+    }
+
+    console.log('Archivo recibido:', req.file);
+
+    // Verificar que la torre existe
+    const torre = await prisma.torres.findUnique({
+      where: { id_torre: id }
+    });
+
+    if (!torre) {
+      return res.status(404).json({ error: 'Torre no encontrada' });
+    }
+
+    // Verificar que el nivel existe
+    const nivel = await prisma.niveles.findFirst({
+      where: { 
+        id_torre: id,
+        numero: parseInt(pisoNumber)
+      }
+    });
+
+    if (!nivel) {
+      return res.status(404).json({ error: 'Nivel no encontrado' });
+    }
+
+    // Crear directorio para las imágenes de pisos si no existe
+    const pisoImagePath = path.join('public', 'edificios', id, 'pisos');
+    if (!fs.existsSync(pisoImagePath)) {
+      fs.mkdirSync(pisoImagePath, { recursive: true });
+    }
+
+    // Mover el archivo a la ubicación correcta
+    const filename = `piso-${pisoNumber}-${Date.now()}${path.extname(req.file.originalname)}`;
+    const finalPath = path.join(pisoImagePath, filename);
+    
+    // Mover archivo desde la ubicación temporal
+    fs.renameSync(req.file.path, finalPath);
+
+    const imagePath = `/edificios/${id}/pisos/${filename}`;
+    
+    // Actualizar o crear registro de imagen del piso en la base de datos
+    // (si tienes una tabla para imágenes de pisos, actualizarla aquí)
+    // Por ahora, solo guardamos la referencia en una estructura que se puede consultar
+
+    console.log('Imagen de piso guardada en:', imagePath);
+
+    res.json({
+      message: 'Imagen de piso subida exitosamente',
+      imagePath,
+      pisoNumber: parseInt(pisoNumber)
+    });
+  } catch (error) {
+    console.error('Error al subir imagen de piso:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// Obtener imágenes de pisos de una torre
+router.get('/:id/pisos/imagenes', authMiddleware, async (req, res) => {
+  try {
+    console.log(`=== GET /buildings/${req.params.id}/pisos/imagenes ===`);
+    const { id } = req.params;
+
+    // Verificar que la torre existe
+    const torre = await prisma.torres.findUnique({
+      where: { id_torre: id },
+      include: {
+        niveles: {
+          orderBy: { numero: 'asc' }
+        }
+      }
+    });
+
+    if (!torre) {
+      return res.status(404).json({ error: 'Torre no encontrada' });
+    }
+
+    const floorImages = [];
+    const pisoImagePath = path.join('public', 'edificios', id, 'pisos');
+
+    // Verificar si existe el directorio de imágenes de pisos
+    if (fs.existsSync(pisoImagePath)) {
+      const files = fs.readdirSync(pisoImagePath);
+      console.log('Archivos encontrados en pisos:', files);
+
+      // Para cada nivel, buscar su imagen correspondiente
+      torre.niveles.forEach(nivel => {
+        const pisoFiles = files.filter(file => 
+          file.startsWith(`piso-${nivel.numero}-`) && 
+          /\.(jpg|jpeg|png|gif|webp)$/i.test(file)
+        );
+
+        if (pisoFiles.length > 0) {
+          // Tomar el archivo más reciente
+          const latestFile = pisoFiles.sort((a, b) => {
+            const aTime = fs.statSync(path.join(pisoImagePath, a)).mtime;
+            const bTime = fs.statSync(path.join(pisoImagePath, b)).mtime;
+            return bTime - aTime;
+          })[0];
+
+          floorImages.push({
+            pisoNumber: nivel.numero,
+            pisoName: nivel.nombre,
+            imageUrl: `/edificios/${id}/pisos/${latestFile}`
+          });
+        }
+      });
+    }
+
+    console.log('Imágenes de pisos encontradas:', floorImages);
+
+    res.json({
+      floorImages
+    });
+  } catch (error) {
+    console.error('Error al obtener imágenes de pisos:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
