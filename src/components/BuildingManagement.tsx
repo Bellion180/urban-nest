@@ -386,9 +386,21 @@ const BuildingManagement: React.FC<BuildingManagementProps> = ({ isOpen, onClose
       
     } catch (error) {
       console.error('Error deleting building:', error);
+      let errorMessage = "No se pudo eliminar el edificio";
+      
+      if (error instanceof Error) {
+        if (error.message.includes("500")) {
+          errorMessage = "Error en el servidor. Verifica que no haya residentes o departamentos asociados al edificio.";
+        } else if (error.message.includes("404")) {
+          errorMessage = "El edificio no existe o ya fue eliminado.";
+        } else if (error.message.includes("403")) {
+          errorMessage = "No tienes permisos para eliminar este edificio.";
+        }
+      }
+      
       toast({
         title: "Error",
-        description: "No se pudo eliminar el edificio",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {

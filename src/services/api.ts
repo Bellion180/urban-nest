@@ -189,7 +189,7 @@ export const buildingService = {
 
   // Eliminar torre
   delete: async (id: string) => {
-    const response = await authenticatedFetch(`/torres/${id}`, {
+    const response = await authenticatedFetch(`/buildings/${id}`, {
       method: 'DELETE',
     });
     return response.json();
