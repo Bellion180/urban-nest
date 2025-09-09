@@ -199,13 +199,21 @@ const Dashboard = () => {
               >
                 <div className="aspect-video relative">
                   <img 
-                    src={`/edificios/${building.id}/1757037853446.png`} 
+                    src={building.image ? `http://localhost:3001${building.image}` : `/edificios/image-1757376060873-181390284.jpg`} 
                     alt={building.name}
                     className="w-full h-full object-cover"
                     onError={(e) => {
-                      // Si no encuentra la imagen específica, usa placeholder
+                      // Si no encuentra la imagen específica, usa imágenes locales o placeholder
                       const img = e.target as HTMLImageElement;
-                      img.src = `/placeholder.svg`;
+                      const currentSrc = img.src;
+                      
+                      if (!currentSrc.includes('placeholder.svg') && !currentSrc.includes('/edificios/')) {
+                        // Intentar con imágenes locales
+                        img.src = `/edificios/image-1757376060873-181390284.jpg`;
+                      } else if (currentSrc.includes('/edificios/') && !currentSrc.includes('placeholder.svg')) {
+                        // Si falló la imagen local, usar placeholder
+                        img.src = `/placeholder.svg`;
+                      }
                     }}
                   />
                   <div className="absolute top-2 left-2 bg-tlahuacali-red text-white px-2 py-1 rounded-full text-xs font-medium">

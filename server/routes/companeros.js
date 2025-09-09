@@ -1,7 +1,50 @@
 import express from 'express';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 import { prisma } from '../../src/lib/prisma.js';
 
 const router = express.Router();
+
+// Configuración de multer para fotos de perfil
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    // Usar directorio temporal siempre
+    const tempDir = path.join('public', 'temp-uploads');
+    
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+    
+    console.log('📁 Multer: Guardando en directorio temporal:', tempDir);
+    cb(null, tempDir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const timestamp = Date.now();
+    const filename = `perfil-${timestamp}${ext}`;
+    console.log('📸 Multer: Nombre de archivo:', filename);
+    cb(null, filename);
+  }
+});
+
+const upload = multer({ 
+  storage: storage,
+  fileFilter: (req, file, cb) => {
+    if (file.fieldname === 'profilePhoto') {
+      if (file.mimetype.startsWith('image/')) {
+        cb(null, true);
+      } else {
+        cb(new Error('Solo se permiten archivos de imagen para la foto de perfil'));
+      }
+    } else {
+      cb(new Error('Campo de archivo no reconocido'));
+    }
+  },
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB límite
+  }
+});
 
 console.log('🏠 Cargando rutas de companeros...');
 
@@ -54,7 +97,7 @@ router.get('/', async (req, res) => {
         noPersonas: companero.no_personas,
         discapacidad: companero.no_des_per > 0,
         noPersonasDiscapacitadas: companero.no_des_per,
-        profilePhoto: null, // No existe en nueva estructura
+        profilePhoto: companero.profilePhoto, // Incluir foto de perfil si existe
         documentoCurp: null, // No existe en nueva estructura
         documentoComprobanteDomicilio: null, // No existe en nueva estructura
         documentoActaNacimiento: null, // No existe en nueva estructura
@@ -101,9 +144,30 @@ router.get('/', async (req, res) => {
         
         // Información adicional del nivel para el frontend
         piso: nivelInfo?.numero || 1,
+        pisoNumero: nivelInfo?.numero || 1,
         pisoNombre: nivelInfo?.nombre || `Nivel ${nivelInfo?.numero || 1}`,
         edificio: companero.departamento?.torre?.letra || 'Sin edificio',
-        apartamento: companero.departamento?.nombre || 'Sin departamento'
+        apartamento: companero.departamento?.nombre || 'Sin departamento',
+        
+        // Información adicional mapeada desde la nueva estructura
+        no_personas: companero.no_personas,
+        no_des_per: companero.no_des_per,
+        recibo_apoyo: companero.recibo_apoyo || 'NO',
+        no_apoyo: companero.no_apoyo,
+        fecha_nacimiento: companero.fecha_nacimiento,
+        
+        // Pagos recientes para el historial
+        payments: companero.financieros ? companero.financieros.map(pago => ({
+          id: pago.id_financiero,
+          amount: parseFloat(pago.monto || 0),
+          type: pago.tipo || 'Pago',
+          description: pago.descripcion,
+          date: pago.createdAt
+        })) : [],
+        
+        // Contar pagos realizados
+        pagosRealizados: companero.financieros ? companero.financieros.reduce((total, pago) => 
+          total + parseFloat(pago.monto || 0), 0) : 0
       };
     });
 
@@ -188,6 +252,33 @@ router.get('/building/:buildingId/floor/:floorNumber', async (req, res) => {
           idCompanero: companero.id_companero
         } : null,
         
+        // Información adicional del nivel para el frontend
+        piso: nivelInfo?.numero || 1,
+        pisoNumero: nivelInfo?.numero || 1,
+        pisoNombre: nivelInfo?.nombre || `Nivel ${nivelInfo?.numero || 1}`,
+        edificio: companero.departamento?.torre?.letra || 'Sin edificio',
+        apartamento: companero.departamento?.nombre || 'Sin departamento',
+        
+        // Información adicional mapeada desde la nueva estructura
+        no_personas: companero.no_personas,
+        no_des_per: companero.no_des_per,
+        recibo_apoyo: companero.recibo_apoyo || 'NO',
+        no_apoyo: companero.no_apoyo,
+        fecha_nacimiento: companero.fecha_nacimiento,
+        
+        // Pagos recientes para el historial
+        payments: companero.financieros ? companero.financieros.map(pago => ({
+          id: pago.id_financiero,
+          amount: parseFloat(pago.monto || 0),
+          type: pago.tipo || 'Pago',
+          description: pago.descripcion,
+          date: pago.createdAt
+        })) : [],
+        
+        // Contar pagos realizados
+        pagosRealizados: companero.financieros ? companero.financieros.reduce((total, pago) => 
+          total + parseFloat(pago.monto || 0), 0) : 0,
+        
         // Relaciones mapeadas
         building: companero.departamento?.torre ? {
           id: companero.departamento.torre.id_torre,
@@ -195,7 +286,7 @@ router.get('/building/:buildingId/floor/:floorNumber', async (req, res) => {
         } : null,
         apartment: companero.departamento ? {
           id: companero.departamento.id_departamento,
-          number: companero.departamento.no_departamento,
+          number: companero.departamento.nombre,
           floor: nivelInfo ? {
             id: nivelInfo.id_nivel,
             name: nivelInfo.nombre || `Nivel ${nivelInfo.numero}`,
@@ -219,8 +310,8 @@ router.get('/building/:buildingId/floor/:floorNumber', async (req, res) => {
   }
 });
 
-// Crear nuevo compañero
-router.post('/', async (req, res) => {
+// Crear nuevo compañero (con foto de perfil)
+router.post('/', upload.single('profilePhoto'), async (req, res) => {
   try {
     console.log('=== POST /companeros ===');
     console.log('Request body:', req.body);
@@ -287,7 +378,8 @@ router.post('/', async (req, res) => {
       include: {
         departamento: {
           include: {
-            torre: true
+            torre: true,
+            nivel: true
           }
         },
         info_financiero: true
@@ -296,9 +388,58 @@ router.post('/', async (req, res) => {
 
     console.log('✅ Compañero creado exitosamente:', companero.id_companero);
 
+    // Procesar foto de perfil si se subió
+    let profilePhotoPath = null;
+    if (req.file && companero.departamento) {
+      console.log('📸 Procesando foto de perfil...');
+      
+      const torreId = companero.departamento.id_torre || 'sin-torre';
+      const nivelNumero = companero.departamento.nivel?.numero || 1;
+      const deptId = companero.departamento.id_departamento;
+      
+      // Crear estructura de carpetas final
+      const finalDir = path.join('public', 'edificios', torreId, 'pisos', nivelNumero.toString(), 'apartamentos', deptId);
+      
+      if (!fs.existsSync(finalDir)) {
+        fs.mkdirSync(finalDir, { recursive: true });
+        console.log('📁 Directorio creado:', finalDir);
+      }
+      
+      // Mover archivo desde ubicación temporal
+      const finalPhotoPath = path.join(finalDir, 'perfil.jpg');
+      
+      try {
+        fs.renameSync(req.file.path, finalPhotoPath);
+        
+        profilePhotoPath = `/edificios/${torreId}/pisos/${nivelNumero}/apartamentos/${deptId}/perfil.jpg`;
+        
+        // Actualizar el companero con la ruta de la foto
+        await prisma.companeros.update({
+          where: { id_companero: companero.id_companero },
+          data: { profilePhoto: profilePhotoPath }
+        });
+        
+        console.log('✅ Foto de perfil guardada:', profilePhotoPath);
+        
+      } catch (photoError) {
+        console.error('❌ Error procesando foto:', photoError);
+        // No fallar por la foto, continuar sin ella
+      }
+    } else if (req.file) {
+      console.log('⚠️ Foto subida pero sin departamento asignado, eliminando archivo temporal');
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (cleanupError) {
+        console.error('❌ Error limpiando archivo temporal:', cleanupError);
+      }
+    }
+
     res.status(201).json({
       message: 'Compañero creado exitosamente',
-      companero
+      companero: {
+        ...companero,
+        profilePhoto: profilePhotoPath || companero.profilePhoto
+      }
     });
   } catch (error) {
     console.error('❌ Error al crear compañero:', error);

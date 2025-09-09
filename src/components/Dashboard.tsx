@@ -44,13 +44,31 @@ const Dashboard = () => {
       setError(null);
       console.log('Dashboard: Obteniendo edificios de la API...');
       
+      // Verificar si hay token de autenticación
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        console.error('Dashboard: No hay token de autenticación');
+        setError('No se encontró token de autenticación. Por favor, inicie sesión nuevamente.');
+        return;
+      }
+      
       const buildingsData = await buildingService.getAll();
       console.log('Dashboard: Edificios recibidos:', buildingsData);
+      console.log('Dashboard: Tipo de datos recibidos:', typeof buildingsData);
+      console.log('Dashboard: Es array?', Array.isArray(buildingsData));
       
-      if (!buildingsData || !Array.isArray(buildingsData)) {
+      if (!buildingsData) {
+        console.log('Dashboard: No se recibieron datos');
+        setBuildings([]);
+        return;
+      }
+      
+      if (!Array.isArray(buildingsData)) {
+        console.error('Dashboard: Los datos no son un array:', buildingsData);
         throw new Error('Datos de edificios inválidos recibidos del servidor');
       }
       
+      console.log(`Dashboard: Se encontraron ${buildingsData.length} edificios`);
       setBuildings(buildingsData);
     } catch (error: any) {
       console.error('Dashboard: Error al obtener edificios:', error);
@@ -145,12 +163,16 @@ const Dashboard = () => {
                 <div className="aspect-video relative">
                   <img 
                     src={building.image ? `http://localhost:3001${building.image}` : `/placeholder.svg`} 
-                    alt={building.name}
+                    alt={`Torre ${building.name}`}
                     className="w-full h-full object-cover"
                     onError={(e) => {
-                      // Si no encuentra la imagen específica, usa placeholder
                       const img = e.target as HTMLImageElement;
-                      img.src = `/placeholder.svg`;
+                      const currentSrc = img.src;
+                      
+                      if (!currentSrc.includes('placeholder.svg')) {
+                        console.log(`Error cargando imagen: ${currentSrc}, usando placeholder`);
+                        img.src = `/placeholder.svg`;
+                      }
                     }}
                   />
                   <div className="absolute top-2 left-2 bg-tlahuacali-red text-white px-2 py-1 rounded-full text-xs font-medium">
@@ -167,14 +189,18 @@ const Dashboard = () => {
                   </p>
                   
                   <div className="flex justify-between items-center mb-4">
-                    <div className="flex items-center space-x-3 text-xs text-muted-foreground">
+                    <div className="flex items-center space-x-4 text-xs text-muted-foreground">
                       <div className="flex items-center space-x-1">
-                        <Building className="h-3 w-3" />
-                        <span>{building.floors?.length || 0} niveles</span>
+                        <Building className="h-4 w-4 text-tlahuacali-red" />
+                        <span className="font-medium">
+                          {building.floors?.length || building.totalFloors || 0} niveles
+                        </span>
                       </div>
                       <div className="flex items-center space-x-1">
-                        <Users className="h-3 w-3" />
-                        <span>{building._count?.residents || 0} residentes</span>
+                        <Users className="h-4 w-4 text-tlahuacali-red" />
+                        <span className="font-medium">
+                          {building._count?.residents || building.totalResidents || 0} residentes
+                        </span>
                       </div>
                     </div>
                   </div>

@@ -1,7 +1,8 @@
 import React from 'react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 
 interface SimplePhotoModalProps {
   photo: string;
@@ -19,6 +20,10 @@ const SimplePhotoModal: React.FC<SimplePhotoModalProps> = ({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="w-[95vw] max-w-3xl p-0 overflow-hidden mx-auto">
+        <VisuallyHidden>
+          <DialogTitle>Foto del Residente</DialogTitle>
+          <DialogDescription>Vista ampliada de la foto de perfil del residente</DialogDescription>
+        </VisuallyHidden>
         <div className="relative">
           <Button
             variant="ghost"

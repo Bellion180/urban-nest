@@ -326,12 +326,45 @@ const AdminPanel = () => {
                   className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 bg-white rounded-lg gap-3 sm:gap-4"
                 >
                   <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
-                    <img 
-                      src={resident.profilePhoto ? `http://localhost:3001${resident.profilePhoto}` : '/placeholder.svg'} 
-                      alt={`${resident.nombre} ${resident.apellido}`}
-                      className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover cursor-pointer flex-shrink-0"
-                      onClick={() => handlePhotoClick(resident.profilePhoto ? `http://localhost:3001${resident.profilePhoto}` : '/placeholder.svg')}
-                    />
+                    <div 
+                      className="w-12 h-12 sm:w-16 sm:h-16 rounded-full flex-shrink-0 overflow-hidden bg-gradient-to-br from-tlahuacali-red to-red-600 flex items-center justify-center relative"
+                    >
+                      {resident.profilePhoto ? (
+                        <img 
+                          src={`http://localhost:3001${resident.profilePhoto}`} 
+                          alt={`${resident.nombre} ${resident.apellido}`}
+                          className="w-full h-full object-cover cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePhotoClick(`http://localhost:3001${resident.profilePhoto}`);
+                          }}
+                          onError={(e) => {
+                            console.log(`Error cargando foto: ${resident.profilePhoto}`);
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                            const parent = target.parentElement;
+                            if (parent) {
+                              const initials = parent.querySelector('.admin-initials');
+                              if (initials) {
+                                (initials as HTMLElement).style.display = 'flex';
+                                (initials as HTMLElement).style.cursor = 'pointer';
+                              }
+                            }
+                          }}
+                        />
+                      ) : null}
+                      <span 
+                        className={`admin-initials absolute inset-0 flex items-center justify-center text-white font-bold text-xs sm:text-sm cursor-pointer ${
+                          resident.profilePhoto ? 'hidden' : 'flex'
+                        }`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePhotoClick('/placeholder.svg');
+                        }}
+                      >
+                        {(resident.nombre?.charAt(0) || '?').toUpperCase()}{(resident.apellido?.charAt(0) || '?').toUpperCase()}
+                      </span>
+                    </div>
                     
                     <div className="flex-1 min-w-0">
                       <h3 className="text-sm sm:text-base font-semibold text-foreground truncate">

@@ -38,11 +38,22 @@ const ResidentDetailModal: React.FC<ResidentDetailModalProps> = ({
   
   // Debug: Logs para documentos
   console.log('🔍 ResidentDetailModal - Datos del residente recibidos:', resident);
+  console.log('🔍 ResidentDetailModal - Tipo de objeto:', typeof resident);
+  console.log('🔍 ResidentDetailModal - Claves del objeto:', resident ? Object.keys(resident) : 'No hay claves');
   console.log('🔍 ResidentDetailModal - Campos de documentos:');
   console.log('  - documentoCurp:', resident?.documentoCurp);
   console.log('  - documentoComprobanteDomicilio:', resident?.documentoComprobanteDomicilio);
   console.log('  - documentoActaNacimiento:', resident?.documentoActaNacimiento);
   console.log('  - documentoIne:', resident?.documentoIne);
+  console.log('🔍 ResidentDetailModal - Información financiera:');
+  console.log('  - deudaActual:', resident?.deudaActual);
+  console.log('  - pagosRealizados:', resident?.pagosRealizados);
+  console.log('  - inviInfo:', resident?.inviInfo);
+  console.log('🔍 ResidentDetailModal - Información personal adicional:');
+  console.log('  - no_personas:', resident?.no_personas);
+  console.log('  - no_des_per:', resident?.no_des_per);
+  console.log('  - recibo_apoyo:', resident?.recibo_apoyo);
+  console.log('  - payments:', resident?.payments);
   
   if (!resident) return null;
 
@@ -95,11 +106,34 @@ const ResidentDetailModal: React.FC<ResidentDetailModalProps> = ({
                         className="relative cursor-pointer group"
                         onClick={() => onPhotoClick(resident.profilePhoto || '/placeholder.svg')}
                       >
-                        <img 
-                          src={resident.profilePhoto ? `http://localhost:3001${resident.profilePhoto}` : '/placeholder.svg'} 
-                          alt={`${resident.nombre} ${resident.apellido}`}
-                          className="w-32 h-32 rounded-full object-cover border-4 border-gray-200 group-hover:border-blue-500 transition-colors"
-                        />
+                        <div className="w-32 h-32 rounded-full border-4 border-gray-200 group-hover:border-blue-500 transition-colors overflow-hidden bg-gradient-to-br from-tlahuacali-red to-red-600 flex items-center justify-center">
+                          {resident.profilePhoto ? (
+                            <img 
+                              src={`http://localhost:3001${resident.profilePhoto}`} 
+                              alt={`${resident.nombre} ${resident.apellido}`}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                console.log(`Error cargando foto en modal: ${resident.profilePhoto}`);
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                                const parent = target.parentElement;
+                                if (parent) {
+                                  const initials = parent.querySelector('.modal-initials');
+                                  if (initials) {
+                                    (initials as HTMLElement).style.display = 'flex';
+                                  }
+                                }
+                              }}
+                            />
+                          ) : null}
+                          <span 
+                            className={`modal-initials absolute inset-0 flex items-center justify-center text-white font-bold text-2xl ${
+                              resident.profilePhoto ? 'hidden' : 'flex'
+                            }`}
+                          >
+                            {(resident.nombre?.charAt(0) || '?').toUpperCase()}{(resident.apellido?.charAt(0) || '?').toUpperCase()}
+                          </span>
+                        </div>
                         <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                           <Camera className="h-8 w-8 text-white" />
                         </div>
@@ -119,69 +153,95 @@ const ResidentDetailModal: React.FC<ResidentDetailModalProps> = ({
                     </div>
                     
                     <div className="space-y-3">
+                      {/* Ubicación */}
                       <div className="flex items-center space-x-2">
-                        <MapPin className="h-4 w-4 text-muted-foreground" />
+                        <MapPin className="h-4 w-4 text-tlahuacali-red" />
                         <span className="text-sm">
-                          {resident.building?.name ? 
-                            `${resident.building.name} - ${resident.apartment?.floor?.name} - Apt. ${resident.apartment?.number}` :
-                            'Sin ubicación asignada'
+                          {resident.edificio && resident.apartamento ? 
+                            `Torre ${resident.edificio} - Piso ${resident.piso} - Apt. ${resident.apartamento}` :
+                            resident.building?.name ? 
+                              `${resident.building.name} - ${resident.apartment?.floor?.name} - Apt. ${resident.apartment?.number}` :
+                              'Sin ubicación asignada'
                           }
                         </span>
                       </div>
                       
+                      {/* Contacto */}
                       {resident.email && (
                         <div className="flex items-center space-x-2">
-                          <Mail className="h-4 w-4 text-muted-foreground" />
+                          <Mail className="h-4 w-4 text-tlahuacali-red" />
                           <span className="text-sm">{resident.email}</span>
                         </div>
                       )}
                       
                       {resident.telefono && (
                         <div className="flex items-center space-x-2">
-                          <Phone className="h-4 w-4 text-muted-foreground" />
+                          <Phone className="h-4 w-4 text-tlahuacali-red" />
                           <span className="text-sm">{resident.telefono}</span>
                         </div>
                       )}
                       
-                      {resident.fechaNacimiento && (
+                      {/* Información Personal */}
+                      {(resident.fechaNacimiento || resident.fecha_nacimiento) && (
                         <div className="flex items-center space-x-2">
-                          <Calendar className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm">Fecha de Nacimiento: {new Date(resident.fechaNacimiento).toLocaleDateString()}</span>
+                          <Calendar className="h-4 w-4 text-tlahuacali-red" />
+                          <span className="text-sm">
+                            Nacimiento: {new Date(resident.fechaNacimiento || resident.fecha_nacimiento).toLocaleDateString('es-MX')}
+                          </span>
                         </div>
                       )}
                       
                       {resident.edad && (
                         <div className="flex items-center space-x-2">
-                          <User className="h-4 w-4 text-muted-foreground" />
+                          <User className="h-4 w-4 text-tlahuacali-red" />
                           <span className="text-sm">Edad: {resident.edad} años</span>
                         </div>
                       )}
                       
-                      {resident.noPersonas && (
+                      {/* Información del Hogar */}
+                      {(resident.noPersonas || resident.no_personas) && (
                         <div className="flex items-center space-x-2">
-                          <Users className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm">Número de Personas: {resident.noPersonas}</span>
-                        </div>
-                      )}
-                      
-                      <div className="flex items-center space-x-2">
-                        <Heart className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">
-                          Personas con discapacidad: {resident.discapacidad ? 'Sí' : 'No'}
-                        </span>
-                      </div>
-                      
-                      {resident.discapacidad && resident.noPersonasDiscapacitadas > 0 && (
-                        <div className="flex items-center space-x-2 ml-6">
-                          <span className="text-sm text-muted-foreground">
-                            Número de personas discapacitadas: {resident.noPersonasDiscapacitadas}
+                          <Users className="h-4 w-4 text-tlahuacali-red" />
+                          <span className="text-sm">
+                            Personas en el hogar: {resident.noPersonas || resident.no_personas}
                           </span>
                         </div>
                       )}
                       
+                      {(resident.no_des_per || resident.noPersonasDiscapacitadas) && (
+                        <div className="flex items-center space-x-2">
+                          <Heart className="h-4 w-4 text-tlahuacali-red" />
+                          <span className="text-sm">
+                            Personas con discapacidad: {resident.no_des_per || resident.noPersonasDiscapacitadas || 0}
+                          </span>
+                        </div>
+                      )}
+                      
+                      {/* Apoyo */}
+                      {resident.recibo_apoyo && (
+                        <div className="flex items-center space-x-2">
+                          <Briefcase className="h-4 w-4 text-tlahuacali-red" />
+                          <span className="text-sm">
+                            Recibe apoyo: {resident.recibo_apoyo}
+                            {resident.no_apoyo && ` (Número: ${resident.no_apoyo})`}
+                          </span>
+                        </div>
+                      )}
+                      
+                      {/* Fecha de Registro */}
                       <div className="flex items-center space-x-2">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">Fecha de Registro: {new Date(resident.registrationDate).toLocaleDateString()}</span>
+                        <Calendar className="h-4 w-4 text-tlahuacali-red" />
+                        <span className="text-sm">
+                          Fecha de Registro: {new Date(resident.registrationDate || resident.createdAt).toLocaleDateString('es-MX')}
+                        </span>
+                      </div>
+                      
+                      {/* ID del Residente para referencia */}
+                      <div className="flex items-center space-x-2">
+                        <FileText className="h-4 w-4 text-tlahuacali-red" />
+                        <span className="text-sm">
+                          ID de Registro: {resident.id || resident.id_companero}
+                        </span>
                       </div>
                     </div>
                   </CardContent>
@@ -438,6 +498,31 @@ const ResidentDetailModal: React.FC<ResidentDetailModalProps> = ({
                         <div className="space-y-3">
                           <div className="flex justify-between">
                             <span className="font-medium text-gray-600">ID INVI:</span>
+                            <span className="text-gray-800">{resident.inviInfo?.idInvi || 'No asignado'}</span>
+                          </div>
+                          
+                          <div className="flex justify-between">
+                            <span className="font-medium text-gray-600">ID Compañero:</span>
+                            <span className="text-gray-800">{resident.id || resident.id_companero || 'No disponible'}</span>
+                          </div>
+                          
+                          <div className="flex justify-between">
+                            <span className="font-medium text-gray-600">Mensualidades:</span>
+                            <span className="text-gray-800">{resident.inviInfo?.mensualidades || 'No especificado'}</span>
+                          </div>
+                          
+                          <div className="flex justify-between">
+                            <span className="font-medium text-gray-600">Fecha de Contrato:</span>
+                            <span className="text-gray-800">
+                              {resident.inviInfo?.fechaContrato ? 
+                                new Date(resident.inviInfo.fechaContrato).toLocaleDateString('es-MX') : 
+                                'No registrada'
+                              }
+                            </span>
+                          </div>
+                          
+                          <div className="flex justify-between">
+                            <span className="font-medium text-gray-600">Fecha de Registro Inicial:</span>
                             <span className="font-semibold">{resident.inviInfo?.idInvi || 'No asignado'}</span>
                           </div>
                           

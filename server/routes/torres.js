@@ -15,8 +15,8 @@ const findBuildingImage = (buildingId) => {
     console.log(`🔍 Buscando imagen para edificio ${buildingId} en directorio:`, buildingDir);
     
     if (!fs.existsSync(buildingDir)) {
-      console.log(`❌ Directorio no existe: ${buildingDir}`);
-      return null;
+      console.log(`❌ Directorio no existe: ${buildingDir}, usando imagen por defecto`);
+      return `/placeholder.svg`;
     }
     
     const files = fs.readdirSync(buildingDir);
@@ -27,17 +27,22 @@ const findBuildingImage = (buildingId) => {
       const ext = path.extname(file).toLowerCase();
       const name = path.basename(file, ext).toLowerCase();
       const isImage = ['.png', '.jpg', '.jpeg'].includes(ext);
-      const isNotSpecific = !name.includes('piso') && !name.includes('perfil');
+      const isNotSpecific = !name.includes('piso') && !name.includes('perfil') && !name.includes('nivel');
       console.log(`🔍 Evaluando archivo ${file}: ext=${ext}, name=${name}, isImage=${isImage}, isNotSpecific=${isNotSpecific}`);
       return isImage && isNotSpecific;
     });
     
-    const result = imageFile ? `/edificios/${buildingId}/${imageFile}` : null;
-    console.log(`✅ Imagen encontrada para edificio ${buildingId}:`, result);
-    return result;
+    if (imageFile) {
+      const result = `/edificios/${buildingId}/${imageFile}`;
+      console.log(`✅ Imagen encontrada para edificio ${buildingId}:`, result);
+      return result;
+    } else {
+      console.log(`❌ No se encontró imagen específica para edificio ${buildingId}, usando placeholder`);
+      return `/placeholder.svg`;
+    }
   } catch (error) {
     console.error(`❌ Error buscando imagen para edificio ${buildingId}:`, error);
-    return null;
+    return `/placeholder.svg`;
   }
 };
 
@@ -126,6 +131,8 @@ router.get('/', authMiddleware, async (req, res) => {
     }
 
     // Si no se proporciona ID, obtener todas las torres (comportamiento existente)
+    console.log('📋 GET /torres - Obteniendo todas las torres...');
+    
     const torres = await prisma.torres.findMany({
       include: {
         niveles: {
@@ -152,36 +159,70 @@ router.get('/', authMiddleware, async (req, res) => {
       }
     });
 
+    console.log(`📊 Torres encontradas en DB: ${torres.length}`);
+    torres.forEach((torre, index) => {
+      console.log(`  ${index + 1}. Torre ${torre.letra} - Niveles: ${torre.niveles?.length || 0}, Departamentos: ${torre.departamentos?.length || 0}`);
+    });
+
     if (!torres || torres.length === 0) {
+      console.log('❌ No se encontraron torres en la base de datos');
       return res.json([]);
     }
 
     // Mapear para compatibilidad con estructura anterior pero incluyendo niveles
-    const mappedBuildings = torres.map(torre => ({
-      id: torre.id_torre,
-      name: torre.letra,
-      description: torre.descripcion || `Torre ${torre.letra}`,
-      image: findBuildingImage(torre.id_torre), // Búsqueda dinámica de imagen
-      createdAt: torre.createdAt,
-      updatedAt: torre.updatedAt,
-      // Mapear niveles como floors
-      floors: (torre.niveles || []).map(nivel => ({
-        id: nivel.id_nivel,
-        name: nivel.nombre,
-        number: nivel.numero,
-        buildingId: torre.id_torre,
-        apartments: (nivel.departamentos || []).map(dept => dept.nombre),
-        _count: {
-          residents: (nivel.departamentos || []).reduce((total, dept) => total + (dept.companeros?.length || 0), 0)
-        }
-      })),
-      _count: {
-        residents: (torre.niveles || []).reduce((total, nivel) => 
-          total + (nivel.departamentos || []).reduce((subTotal, dept) => 
-            subTotal + (dept.companeros?.length || 0), 0), 0)
-      }
-    }));
+    const mappedBuildings = torres.map(torre => {
+      const totalResidents = (torre.niveles || []).reduce((total, nivel) => 
+        total + (nivel.departamentos || []).reduce((subTotal, dept) => 
+          subTotal + (dept.companeros?.length || 0), 0), 0);
+      
+      const totalFloors = (torre.niveles || []).length;
+      
+      const totalApartments = (torre.niveles || []).reduce((total, nivel) => 
+        total + (nivel.departamentos || []).length, 0);
 
+      console.log(`🏢 Torre ${torre.letra} - Niveles: ${totalFloors}, Departamentos: ${totalApartments}, Residentes: ${totalResidents}`);
+
+      return {
+        id: torre.id_torre,
+        name: torre.letra,
+        description: torre.descripcion || `Torre ${torre.letra}`,
+        image: findBuildingImage(torre.id_torre), // Búsqueda dinámica de imagen
+        createdAt: torre.createdAt,
+        updatedAt: torre.updatedAt,
+        address: `Torre ${torre.letra}`,
+        totalFloors: totalFloors,
+        totalApartments: totalApartments,
+        totalResidents: totalResidents,
+        // Mapear niveles como floors
+        floors: (torre.niveles || []).map(nivel => {
+          const totalApartmentsInFloor = (nivel.departamentos || []).length;
+          const totalResidentsInFloor = (nivel.departamentos || []).reduce((total, dept) => total + (dept.companeros?.length || 0), 0);
+          
+          return {
+            id: nivel.id_nivel,
+            name: nivel.nombre || `Nivel ${nivel.numero}`,
+            number: nivel.numero,
+            buildingId: torre.id_torre,
+            apartments: (nivel.departamentos || []).map(dept => dept.nombre),
+            _count: {
+              residents: totalResidentsInFloor,
+              apartments: totalApartmentsInFloor
+            }
+          };
+        }),
+        _count: {
+          residents: totalResidents,
+          floors: totalFloors,
+          apartments: totalApartments
+        }
+      };
+    });
+
+    console.log(`✅ Enviando ${mappedBuildings.length} torres mapeadas al frontend`);
+    mappedBuildings.forEach((building, index) => {
+      console.log(`  ${index + 1}. ${building.name} - Imagen: ${building.image || 'Sin imagen'}`);
+    });
+    
     res.json(mappedBuildings);
   } catch (error) {
     console.error('Error al obtener torres:', error);

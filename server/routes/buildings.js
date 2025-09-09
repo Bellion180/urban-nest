@@ -153,11 +153,8 @@ router.post('/', authMiddleware, upload.single('image'), async (req, res) => {
   try {
     console.log('=== POST /buildings ===');
     console.log('🔐 Usuario autenticado:', req.user);
-    console.log('📋 Content-Type:', req.headers['content-type']);
-    console.log('📦 Body keys:', Object.keys(req.body));
-    console.log('📦 Body:', req.body);
-    console.log('🗂️ File:', req.file);
-    console.log('📝 Raw headers:', req.headers);
+    console.log('� Body:', req.body);
+    console.log('�️ File:', req.file);
     
     let { name, description, floors } = req.body;
 
@@ -183,12 +180,12 @@ router.post('/', authMiddleware, upload.single('image'), async (req, res) => {
       return res.status(400).json({ error: 'Nombre y descripción son requeridos' });
     }
 
-    // Crear la torre con niveles y departamentos
+    // Primero crear la torre SIN imagen para obtener el ID
     const nuevaTorre = await prisma.torres.create({
       data: {
         letra: name,
         descripcion: description,
-        imagen: req.file ? `/edificios/${req.file.filename}` : null,
+        imagen: null, // Se establecerá después si hay imagen
         niveles: {
           create: (floors || []).map(floor => ({
             nombre: floor.name,
@@ -217,11 +214,52 @@ router.post('/', authMiddleware, upload.single('image'), async (req, res) => {
 
     console.log('Torre creada exitosamente:', nuevaTorre.id_torre);
 
+    // Procesar imagen si se subió
+    let imagePath = null;
+    if (req.file) {
+      console.log('📸 Procesando imagen del edificio...');
+      
+      // Crear directorio específico del edificio
+      const buildingDir = path.join('public', 'edificios', nuevaTorre.id_torre);
+      if (!fs.existsSync(buildingDir)) {
+        fs.mkdirSync(buildingDir, { recursive: true });
+        console.log('📁 Directorio creado:', buildingDir);
+      }
+      
+      // Generar nombre de archivo único
+      const filename = `edificio-${Date.now()}${path.extname(req.file.originalname)}`;
+      const oldPath = req.file.path;
+      const newPath = path.join(buildingDir, filename);
+      
+      try {
+        // Mover archivo a la carpeta correcta
+        fs.renameSync(oldPath, newPath);
+        imagePath = `/edificios/${nuevaTorre.id_torre}/${filename}`;
+        
+        // Actualizar registro con la imagen
+        await prisma.torres.update({
+          where: { id_torre: nuevaTorre.id_torre },
+          data: { imagen: imagePath }
+        });
+        
+        console.log('✅ Imagen guardada en:', imagePath);
+      } catch (error) {
+        console.error('❌ Error moviendo imagen:', error);
+        // Fallback: usar ubicación original si falla el movimiento
+        imagePath = `/edificios/${req.file.filename}`;
+        await prisma.torres.update({
+          where: { id_torre: nuevaTorre.id_torre },
+          data: { imagen: imagePath }
+        });
+      }
+    }
+
+    // Formatear respuesta
     const formattedBuilding = {
       id: nuevaTorre.id_torre,
       name: nuevaTorre.letra,
       description: nuevaTorre.descripcion,
-      image: nuevaTorre.imagen,
+      image: imagePath,
       floors: nuevaTorre.niveles.map(nivel => ({
         id: nivel.id_nivel,
         name: nivel.nombre,
@@ -239,7 +277,7 @@ router.post('/', authMiddleware, upload.single('image'), async (req, res) => {
 
   } catch (error) {
     console.error('Error al crear torre:', error);
-    console.error('Stack:', error.stack);
+    console.error('Stack trace:', error.stack);
     res.status(500).json({ error: 'Error interno del servidor', details: error.message });
   }
 });
@@ -571,26 +609,39 @@ router.post('/:id/pisos/:pisoNumber/image', authMiddleware, upload.single('image
       return res.status(404).json({ error: 'Nivel no encontrado' });
     }
 
-    // Crear directorio para las imágenes de pisos si no existe
-    const pisoImagePath = path.join('public', 'edificios', id, 'pisos');
+    // Crear directorio para las imágenes de pisos usando la estructura estándar
+    const pisoImagePath = path.join('public', 'edificios', id, 'pisos', pisoNumber);
     if (!fs.existsSync(pisoImagePath)) {
       fs.mkdirSync(pisoImagePath, { recursive: true });
     }
 
-    // Mover el archivo a la ubicación correcta
-    const filename = `piso-${pisoNumber}-${Date.now()}${path.extname(req.file.originalname)}`;
+    // Usar nombre estándar piso.jpg para consistencia con el frontend
+    const filename = 'piso.jpg';
     const finalPath = path.join(pisoImagePath, filename);
+    
+    // Si ya existe una imagen, eliminarla
+    if (fs.existsSync(finalPath)) {
+      fs.unlinkSync(finalPath);
+    }
     
     // Mover archivo desde la ubicación temporal
     fs.renameSync(req.file.path, finalPath);
 
-    const imagePath = `/edificios/${id}/pisos/${filename}`;
+    const imagePath = `/edificios/${id}/pisos/${pisoNumber}/${filename}`;
     
-    // Actualizar o crear registro de imagen del piso en la base de datos
-    // (si tienes una tabla para imágenes de pisos, actualizarla aquí)
-    // Por ahora, solo guardamos la referencia en una estructura que se puede consultar
+    // Actualizar la base de datos para asociar la imagen con el nivel
+    await prisma.niveles.updateMany({
+      where: { 
+        id_torre: id,
+        numero: parseInt(pisoNumber)
+      },
+      data: {
+        imagen: imagePath
+      }
+    });
 
     console.log('Imagen de piso guardada en:', imagePath);
+    console.log('Base de datos actualizada para el nivel:', pisoNumber);
 
     res.json({
       message: 'Imagen de piso subida exitosamente',
@@ -624,34 +675,32 @@ router.get('/:id/pisos/imagenes', authMiddleware, async (req, res) => {
     }
 
     const floorImages = [];
-    const pisoImagePath = path.join('public', 'edificios', id, 'pisos');
 
-    // Verificar si existe el directorio de imágenes de pisos
-    if (fs.existsSync(pisoImagePath)) {
-      const files = fs.readdirSync(pisoImagePath);
-      console.log('Archivos encontrados en pisos:', files);
-
-      // Para cada nivel, buscar su imagen correspondiente
-      torre.niveles.forEach(nivel => {
-        const pisoFiles = files.filter(file => 
-          file.startsWith(`piso-${nivel.numero}-`) && 
-          /\.(jpg|jpeg|png|gif|webp)$/i.test(file)
-        );
-
-        if (pisoFiles.length > 0) {
-          // Tomar el archivo más reciente
-          const latestFile = pisoFiles.sort((a, b) => {
-            const aTime = fs.statSync(path.join(pisoImagePath, a)).mtime;
-            const bTime = fs.statSync(path.join(pisoImagePath, b)).mtime;
-            return bTime - aTime;
-          })[0];
-
-          floorImages.push({
-            pisoNumber: nivel.numero,
-            pisoName: nivel.nombre,
-            imageUrl: `/edificios/${id}/pisos/${latestFile}`
-          });
+    // Para cada nivel, usar la imagen de la base de datos o buscar en el sistema de archivos
+    for (const nivel of torre.niveles) {
+      let imageUrl = null;
+      
+      // Primero verificar si hay imagen en la base de datos
+      if (nivel.imagen) {
+        const fullImagePath = path.join(process.cwd(), 'public', nivel.imagen);
+        if (fs.existsSync(fullImagePath)) {
+          imageUrl = nivel.imagen;
         }
+      }
+      
+      // Si no hay imagen en BD, buscar en la estructura estándar
+      if (!imageUrl) {
+        const standardPath = path.join('public', 'edificios', id, 'pisos', nivel.numero.toString(), 'piso.jpg');
+        if (fs.existsSync(standardPath)) {
+          imageUrl = `/edificios/${id}/pisos/${nivel.numero}/piso.jpg`;
+        }
+      }
+
+      floorImages.push({
+        pisoNumber: nivel.numero,
+        pisoName: nivel.descripcion || `Piso ${nivel.numero}`,
+        imageUrl: imageUrl || null, // null si no hay imagen
+        hasImage: !!imageUrl
       });
     }
 

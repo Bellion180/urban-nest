@@ -447,21 +447,22 @@ export const residentService = {
   },
 
   createWithPhoto: async (formData: FormData) => {
-    // Extraer datos y crear sin foto
-    const residentData: any = {};
-    const financiero: any = {};
-    formData.forEach((value, key) => {
-      if (key.startsWith('financiero.')) {
-        const field = key.replace('financiero.', '');
-        financiero[field] = value;
-      } else if (key !== 'photo') {
-        residentData[key] = value;
-      }
+    // Enviar FormData completa (incluyendo foto) al endpoint de companeros
+    const response = await fetch(`${API_BASE_URL}/companeros`, {
+      method: 'POST',
+      headers: {
+        ...(getAuthToken() && { Authorization: `Bearer ${getAuthToken()}` }),
+        // NO agregar Content-Type para FormData, el navegador lo hace automáticamente
+      },
+      body: formData, // Enviar FormData completa con foto
     });
-    if (Object.keys(financiero).length > 0) {
-      residentData.financiero = financiero;
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
+      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
     }
-    return residentService.create(residentData);
+
+    return response.json();
   },
 };
 

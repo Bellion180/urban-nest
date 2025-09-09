@@ -190,17 +190,34 @@ export const FloorResidents = () => {
                   {/* Información Principal */}
                   <div className="flex items-start gap-3 mb-4">
                     <div className="relative">
-                      {resident.profilePhoto ? (
-                        <img
-                          src={`http://localhost:3001${resident.profilePhoto}`}
-                          alt={`${resident.nombre} ${resident.apellido}`}
-                          className="w-16 h-16 rounded-full object-cover border-3 border-tlahuacali-red shadow-md"
-                        />
-                      ) : (
-                        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-tlahuacali-red to-red-600 text-white flex items-center justify-center font-bold text-lg shadow-md">
-                          {resident.nombre.charAt(0)}{resident.apellido.charAt(0)}
-                        </div>
-                      )}
+                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-tlahuacali-red to-red-600 text-white flex items-center justify-center font-bold text-lg shadow-md overflow-hidden">
+                        {resident.profilePhoto ? (
+                          <img
+                            src={`http://localhost:3001${resident.profilePhoto}`}
+                            alt={`${resident.nombre} ${resident.apellido}`}
+                            className="w-full h-full rounded-full object-cover"
+                            onError={(e) => {
+                              console.log(`Error cargando foto de perfil: ${resident.profilePhoto}`);
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                              const parent = target.parentElement;
+                              if (parent) {
+                                const initials = parent.querySelector('.resident-initials');
+                                if (initials) {
+                                  (initials as HTMLElement).style.display = 'flex';
+                                }
+                              }
+                            }}
+                          />
+                        ) : null}
+                        <span 
+                          className={`resident-initials absolute inset-0 flex items-center justify-center ${
+                            resident.profilePhoto ? 'hidden' : 'flex'
+                          }`}
+                        >
+                          {(resident.nombre?.charAt(0) || '?').toUpperCase()}{(resident.apellido?.charAt(0) || '?').toUpperCase()}
+                        </span>
+                      </div>
                       {resident.hasKey && (
                         <div className="absolute -bottom-1 -right-1 bg-green-500 text-white rounded-full p-1.5 shadow-lg">
                           <UserCheck className="h-3 w-3" />

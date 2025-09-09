@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Resident } from '@/types/user';
 import { residentService } from '@/services/api';
 import ResidentDetailModal from './ResidentDetailModal';
-import PhotoModal from './PhotoModal';
+
 import { 
   ArrowLeft, 
   Search, 
@@ -28,8 +28,6 @@ const AdminPanel = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedResident, setSelectedResident] = useState<Resident | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
-  const [currentPhoto, setCurrentPhoto] = useState('');
 
   // Load residents from API
   useEffect(() => {
@@ -50,10 +48,10 @@ const AdminPanel = () => {
   }, []);
 
   const filteredResidents = residents.filter(resident =>
-    resident.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    resident.apellido.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    resident.apartamento.includes(searchTerm) ||
-    resident.edificio.includes(searchTerm)
+    resident.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    resident.apellido?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    resident.apartment?.number?.includes(searchTerm) ||
+    resident.building?.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const activeResidents = residents.filter(r => r.estatus === 'ACTIVO').length;
@@ -97,20 +95,20 @@ const AdminPanel = () => {
   };
 
   const handlePhotoClick = (photo: string) => {
-    setCurrentPhoto(photo);
-    setIsPhotoModalOpen(true);
+    // No hacer nada aquí - las fotos se manejan desde el modal de detalles
+    console.log('Foto clickeada:', photo);
   };
 
   const handlePhotoUpdate = (residentId: string, newPhoto: string) => {
     setResidents(prev => prev.map(resident => {
       if (resident.id === residentId) {
-        return { ...resident, foto: newPhoto };
+        return { ...resident, profilePhoto: newPhoto };
       }
       return resident;
     }));
     
     if (selectedResident && selectedResident.id === residentId) {
-      setSelectedResident({ ...selectedResident, foto: newPhoto });
+      setSelectedResident({ ...selectedResident, profilePhoto: newPhoto });
     }
   };
 
@@ -229,20 +227,61 @@ const AdminPanel = () => {
                   className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 bg-white rounded-lg gap-3 sm:gap-4"
                 >
                   <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
-                    <img 
-                      src={resident.foto} 
-                      alt={`${resident.nombre} ${resident.apellido}`}
-                      className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover cursor-pointer flex-shrink-0"
-                      onClick={() => handlePhotoClick(resident.foto)}
-                    />
+                    <div 
+                      className="w-12 h-12 sm:w-16 sm:h-16 rounded-full flex-shrink-0 overflow-hidden bg-gradient-to-br from-tlahuacali-red to-red-600 flex items-center justify-center relative"
+                    >
+                      {resident.profilePhoto ? (
+                        <img 
+                          src={`http://localhost:3001${resident.profilePhoto}`} 
+                          alt={`${resident.nombre} ${resident.apellido}`}
+                          className="w-full h-full object-cover cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePhotoClick(`http://localhost:3001${resident.profilePhoto}`);
+                          }}
+                          onError={(e) => {
+                            console.log(`Error cargando foto: ${resident.profilePhoto}`);
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                            const parent = target.parentElement;
+                            if (parent) {
+                              const initials = parent.querySelector('.card-initials');
+                              if (initials) {
+                                (initials as HTMLElement).style.display = 'flex';
+                                (initials as HTMLElement).style.cursor = 'pointer';
+                              }
+                            }
+                          }}
+                        />
+                      ) : null}
+                      <span 
+                        className={`card-initials absolute inset-0 flex items-center justify-center text-white font-bold text-xs sm:text-sm cursor-pointer ${
+                          resident.profilePhoto ? 'hidden' : 'flex'
+                        }`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePhotoClick('/placeholder.svg');
+                        }}
+                      >
+                        {(resident.nombre?.charAt(0) || '?').toUpperCase()}{(resident.apellido?.charAt(0) || '?').toUpperCase()}
+                      </span>
+                    </div>
                     
                     <div className="flex-1 min-w-0">
                       <h3 className="text-sm sm:text-base font-semibold text-foreground truncate">
                         {resident.nombre} {resident.apellido}
                       </h3>
                       <p className="text-xs sm:text-sm text-muted-foreground">
-                        {resident.edificio} - Apt. {resident.apartamento}
+                        {resident.building?.name ? 
+                          `Torre ${resident.building.name} - Apt. ${resident.apartment?.number || 'N/A'}` :
+                          'Sin ubicación asignada'
+                        }
                       </p>
+                      {resident.registrationDate && (
+                        <p className="text-xs text-muted-foreground">
+                          Registrado: {new Date(resident.registrationDate).toLocaleDateString('es-MX')}
+                        </p>
+                      )}
                       <div className="flex items-center space-x-2 mt-1">
                         <Badge 
                           variant={resident.estatus === 'ACTIVO' ? 'default' : 'destructive'}
@@ -318,15 +357,9 @@ const AdminPanel = () => {
           resident={selectedResident}
           isOpen={isDetailModalOpen}
           onClose={() => setIsDetailModalOpen(false)}
-          onPhotoUpdate={handlePhotoUpdate}
+          onPhotoClick={handlePhotoClick}
         />
       )}
-      
-      <PhotoModal
-        photo={currentPhoto}
-        isOpen={isPhotoModalOpen}
-        onClose={() => setIsPhotoModalOpen(false)}
-      />
     </div>
   );
 };

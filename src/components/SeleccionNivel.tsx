@@ -19,6 +19,17 @@ interface BuildingData {
   address?: string;
   description?: string;
   niveles: Nivel[];
+  floors?: Array<{
+    id: string;
+    name: string;
+    number: number;
+    buildingId: string;
+    apartments: string[];
+    _count: {
+      residents: number;
+      apartments?: number;
+    };
+  }>;
 }
 
 export const SeleccionNivel = () => {
@@ -191,14 +202,14 @@ export const SeleccionNivel = () => {
                       </p>
                       
                       <div className="flex justify-between items-center">
-                        <div className="flex items-center space-x-3 text-xs text-muted-foreground">
+                        <div className="flex items-center space-x-4 text-sm text-muted-foreground">
                           <div className="flex items-center space-x-1">
-                            <Building className="h-3 w-3" />
-                            <span>Departamentos</span>
+                            <Building className="h-4 w-4 text-tlahuacali-red" />
+                            <span className="font-medium">{buildingData?.floors?.find(f => f.number === nivel.numero_nivel)?.apartments?.length || 0} Depto.</span>
                           </div>
                           <div className="flex items-center space-x-1">
-                            <Users className="h-3 w-3" />
-                            <span>Residentes</span>
+                            <Users className="h-4 w-4 text-tlahuacali-red" />
+                            <span className="font-medium">{buildingData?.floors?.find(f => f.number === nivel.numero_nivel)?._count?.residents || 0} Res.</span>
                           </div>
                         </div>
                       </div>
