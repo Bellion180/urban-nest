@@ -37,6 +37,12 @@ const upload = multer({
       } else {
         cb(new Error('Solo se permiten archivos de imagen para la foto de perfil'));
       }
+    } else if (file.fieldname === 'documents') {
+      if (file.mimetype === 'application/pdf' || file.mimetype.startsWith('image/')) {
+        cb(null, true);
+      } else {
+        cb(new Error('Solo se permiten archivos PDF o imágenes para documentos'));
+      }
     } else {
       cb(new Error('Campo de archivo no reconocido'));
     }
@@ -311,7 +317,10 @@ router.get('/building/:buildingId/floor/:floorNumber', async (req, res) => {
 });
 
 // Crear nuevo compañero (con foto de perfil)
-router.post('/', upload.single('profilePhoto'), async (req, res) => {
+router.post('/', upload.fields([
+  { name: 'profilePhoto', maxCount: 1 },
+  { name: 'documents', maxCount: 10 }
+]), async (req, res) => {
   try {
     console.log('=== POST /companeros ===');
     console.log('Request body:', req.body);
@@ -388,49 +397,100 @@ router.post('/', upload.single('profilePhoto'), async (req, res) => {
 
     console.log('✅ Compañero creado exitosamente:', companero.id_companero);
 
-    // Procesar foto de perfil si se subió
+    // Procesar archivos si se subieron
     let profilePhotoPath = null;
-    if (req.file && companero.departamento) {
-      console.log('📸 Procesando foto de perfil...');
-      
+    let processedDocuments = [];
+    
+    if (companero.departamento && req.files) {
       const torreId = companero.departamento.id_torre || 'sin-torre';
       const nivelNumero = companero.departamento.nivel?.numero || 1;
-      const deptId = companero.departamento.id_departamento;
+      const deptNumero = companero.departamento.no_departamento || companero.departamento.nombre || 'sin-numero';
       
-      // Crear estructura de carpetas final
-      const finalDir = path.join('public', 'edificios', torreId, 'pisos', nivelNumero.toString(), 'apartamentos', deptId);
+      console.log('📁 Datos para crear carpeta:', {
+        torreId,
+        nivelNumero,
+        deptNumero,
+        torreLetra: companero.departamento.torre?.letra
+      });
+      
+      // Crear estructura de carpetas siguiendo el patrón de edificios y pisos
+      const finalDir = path.join('public', 'edificios', torreId, 'pisos', nivelNumero.toString(), 'departamentos', deptNumero);
       
       if (!fs.existsSync(finalDir)) {
         fs.mkdirSync(finalDir, { recursive: true });
         console.log('📁 Directorio creado:', finalDir);
       }
       
-      // Mover archivo desde ubicación temporal
-      const finalPhotoPath = path.join(finalDir, 'perfil.jpg');
-      
-      try {
-        fs.renameSync(req.file.path, finalPhotoPath);
+      // Procesar foto de perfil
+      if (req.files.profilePhoto && req.files.profilePhoto[0]) {
+        console.log('📸 Procesando foto de perfil...');
+        const profileFile = req.files.profilePhoto[0];
+        const finalPhotoPath = path.join(finalDir, 'perfil.jpg');
         
-        profilePhotoPath = `/edificios/${torreId}/pisos/${nivelNumero}/apartamentos/${deptId}/perfil.jpg`;
-        
-        // Actualizar el companero con la ruta de la foto
-        await prisma.companeros.update({
-          where: { id_companero: companero.id_companero },
-          data: { profilePhoto: profilePhotoPath }
-        });
-        
-        console.log('✅ Foto de perfil guardada:', profilePhotoPath);
-        
-      } catch (photoError) {
-        console.error('❌ Error procesando foto:', photoError);
-        // No fallar por la foto, continuar sin ella
+        try {
+          fs.renameSync(profileFile.path, finalPhotoPath);
+          profilePhotoPath = `/edificios/${torreId}/pisos/${nivelNumero}/departamentos/${deptNumero}/perfil.jpg`;
+          
+          // Actualizar el companero con la ruta de la foto
+          await prisma.companeros.update({
+            where: { id_companero: companero.id_companero },
+            data: { profilePhoto: profilePhotoPath }
+          });
+          
+          console.log('✅ Foto de perfil guardada:', profilePhotoPath);
+          
+        } catch (photoError) {
+          console.error('❌ Error procesando foto:', photoError);
+        }
       }
-    } else if (req.file) {
-      console.log('⚠️ Foto subida pero sin departamento asignado, eliminando archivo temporal');
+      
+      // Procesar documentos
+      if (req.files.documents && req.files.documents.length > 0) {
+        console.log('📄 Procesando documentos...');
+        
+        for (let i = 0; i < req.files.documents.length; i++) {
+          const docFile = req.files.documents[i];
+          const extension = path.extname(docFile.originalname) || (docFile.mimetype === 'application/pdf' ? '.pdf' : '.jpg');
+          const finalDocPath = path.join(finalDir, `documento_${i + 1}${extension}`);
+          
+          try {
+            fs.renameSync(docFile.path, finalDocPath);
+            const docUrl = `/edificios/${torreId}/pisos/${nivelNumero}/departamentos/${deptNumero}/documento_${i + 1}${extension}`;
+            processedDocuments.push(docUrl);
+            console.log(`✅ Documento ${i + 1} guardado:`, docUrl);
+          } catch (docError) {
+            console.error(`❌ Error procesando documento ${i + 1}:`, docError);
+          }
+        }
+        
+        // Actualizar el companero con los documentos si se procesaron
+        if (processedDocuments.length > 0) {
+          await prisma.companeros.update({
+            where: { id_companero: companero.id_companero },
+            data: { 
+              documentos: processedDocuments,
+              // Mapear documentos específicos si son reconocidos por nombre
+              ...(processedDocuments.length >= 1 && { documentoIne: processedDocuments[0] }),
+              ...(processedDocuments.length >= 2 && { documentoCurp: processedDocuments[1] }),
+              ...(processedDocuments.length >= 3 && { documentoComprobanteDomicilio: processedDocuments[2] }),
+              ...(processedDocuments.length >= 4 && { documentoActaNacimiento: processedDocuments[3] })
+            }
+          });
+          console.log('✅ Documentos guardados en BD:', processedDocuments);
+        }
+      }
+    } else if (req.files) {
+      console.log('⚠️ Archivos subidos pero sin departamento asignado, eliminando archivos temporales');
       try {
-        fs.unlinkSync(req.file.path);
+        // Limpiar archivos temporales
+        if (req.files.profilePhoto) {
+          req.files.profilePhoto.forEach(file => fs.unlinkSync(file.path));
+        }
+        if (req.files.documents) {
+          req.files.documents.forEach(file => fs.unlinkSync(file.path));
+        }
       } catch (cleanupError) {
-        console.error('❌ Error limpiando archivo temporal:', cleanupError);
+        console.error('❌ Error limpiando archivos temporales:', cleanupError);
       }
     }
 
@@ -438,15 +498,44 @@ router.post('/', upload.single('profilePhoto'), async (req, res) => {
       message: 'Compañero creado exitosamente',
       companero: {
         ...companero,
-        profilePhoto: profilePhotoPath || companero.profilePhoto
+        profilePhoto: profilePhotoPath || companero.profilePhoto,
+        documentos: processedDocuments
       }
     });
   } catch (error) {
     console.error('❌ Error al crear compañero:', error);
     console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Request body:', req.body);
+    console.error('❌ Request files:', req.files);
+    
+    // Limpiar archivos temporales si hay error
+    if (req.files) {
+      try {
+        if (req.files.profilePhoto) {
+          req.files.profilePhoto.forEach(file => {
+            if (fs.existsSync(file.path)) {
+              fs.unlinkSync(file.path);
+              console.log('🗑️ Archivo temporal limpiado:', file.path);
+            }
+          });
+        }
+        if (req.files.documents) {
+          req.files.documents.forEach(file => {
+            if (fs.existsSync(file.path)) {
+              fs.unlinkSync(file.path);
+              console.log('🗑️ Archivo temporal limpiado:', file.path);
+            }
+          });
+        }
+      } catch (cleanupError) {
+        console.error('❌ Error limpiando archivos temporales:', cleanupError);
+      }
+    }
+    
     res.status(500).json({ 
-      error: 'Error interno del servidor',
-      details: error.message
+      error: 'Algo salió mal!',
+      details: error.message,
+      stage: 'creating_companero'
     });
   }
 });
@@ -589,6 +678,72 @@ router.post('/:id/payment', async (req, res) => {
   } catch (error) {
     console.error('Error al procesar pago:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// Endpoint para obtener torres con sus niveles y departamentos
+router.get('/departments', async (req, res) => {
+  try {
+    console.log('🏠 GET /departments - Obteniendo estructura completa...');
+    
+    // Obtener todas las torres con sus niveles y departamentos
+    const torres = await prisma.torres.findMany({
+      select: {
+        id_torre: true,
+        letra: true,
+        descripcion: true,
+        niveles: {
+          select: {
+            id_nivel: true,
+            nombre: true,
+            numero: true,
+            departamentos: {
+              select: {
+                id_departamento: true,
+                nombre: true,
+                no_departamento: true
+              },
+              orderBy: {
+                no_departamento: 'asc'
+              }
+            }
+          },
+          orderBy: {
+            numero: 'asc'
+          }
+        }
+      },
+      orderBy: {
+        letra: 'asc'
+      }
+    });
+
+    console.log(`🏢 Torres encontradas: ${torres.length}`);
+    
+    // Mapear la estructura para el frontend
+    const mappedData = torres.map(torre => ({
+      id: torre.id_torre,
+      name: torre.descripcion || `Torre ${torre.letra}`,
+      letter: torre.letra,
+      levels: torre.niveles.map(nivel => ({
+        id: nivel.id_nivel,
+        name: nivel.nombre,
+        number: nivel.numero,
+        departments: nivel.departamentos.map(dept => ({
+          id: dept.id_departamento,
+          number: dept.no_departamento,
+          name: dept.nombre || dept.no_departamento
+        }))
+      }))
+    }));
+
+    res.json(mappedData);
+  } catch (error) {
+    console.error('❌ Error al obtener estructura:', error);
+    res.status(500).json({ 
+      error: 'Error interno del servidor',
+      details: error.message 
+    });
   }
 });
 

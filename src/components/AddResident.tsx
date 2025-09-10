@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, Loader2, Plus, User, DollarSign, FileText, Upload, X } from 'lucide-react';
 import Header from './Header';
 import { toast } from '@/hooks/use-toast';
-import { buildingService, residentService } from '@/services/api';
+import { buildingService, residentService, departmentService } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface Building {
@@ -23,6 +23,25 @@ interface Building {
   }>;
 }
 
+interface Tower {
+  id: string;
+  name: string;
+  letter?: string;
+  levels: Level[];
+}
+
+interface Level {
+  id: string;
+  number: number;
+  departments: Department[];
+}
+
+interface Department {
+  id: string;
+  number: string;
+  name: string;
+}
+
 const AddResident = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
@@ -30,11 +49,15 @@ const AddResident = () => {
 
   const [loading, setLoading] = useState(false);
   const [loadingBuildings, setLoadingBuildings] = useState(true);
+  const [loadingDepartments, setLoadingDepartments] = useState(true);
   const [buildings, setBuildings] = useState<Building[]>([]);
+  const [towers, setTowers] = useState<Tower[]>([]);
   const [selectedBuilding, setSelectedBuilding] = useState<string>('');
   const [selectedFloor, setSelectedFloor] = useState<string>('');
   const [selectedApartment, setSelectedApartment] = useState<string>('');
+  const [selectedDepartment, setSelectedDepartment] = useState<string>('');
   const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
+  const [documentFiles, setDocumentFiles] = useState<{[key: string]: File}>({});
   
   // Estados para documentos PDF
   const [documents, setDocuments] = useState({
@@ -92,25 +115,32 @@ const AddResident = () => {
   Exp: ''
   });
 
-  // Cargar edificios al montar el componente
+  // Cargar edificios y torres al montar el componente
   useEffect(() => {
-    const loadBuildings = async () => {
+    const loadData = async () => {
       try {
-        const data = await buildingService.getAll();
-        setBuildings(data);
+        // Cargar edificios (para mostrar información visual)
+        const buildingData = await buildingService.getAll();
+        setBuildings(buildingData);
+        
+        // Cargar torres con niveles y departamentos (para selección jerárquica)
+        const towerData = await departmentService.getAll();
+        console.log('� Torres cargadas:', towerData);
+        setTowers(towerData);
       } catch (error) {
-        console.error('Error loading buildings:', error);
+        console.error('Error loading data:', error);
         toast({
           title: "Error",
-          description: "No se pudieron cargar los edificios",
+          description: "No se pudieron cargar los datos",
           variant: "destructive"
         });
       } finally {
         setLoadingBuildings(false);
+        setLoadingDepartments(false);
       }
     };
 
-    loadBuildings();
+    loadData();
   }, []);
 
   // Funciones para manejar salidas múltiples
@@ -151,25 +181,44 @@ const AddResident = () => {
     });
   };
 
-  // Funciones para manejar las selecciones
-  const getFloorsForBuilding = () => {
-    const building = buildings.find(b => b.id === selectedBuilding);
-    return building?.floors || [];
+  // Funciones para manejar las selecciones jerárquicas
+  const getSelectedTower = () => {
+    return towers.find(t => t.id === selectedBuilding);
   };
 
-  const getApartmentsForFloor = () => {
-    const building = buildings.find(b => b.id === selectedBuilding);
-    const floor = building?.floors.find(f => f.id === selectedFloor);
-    return floor?.apartments || [];
+  const getLevelsForTower = () => {
+    const tower = getSelectedTower();
+    return tower?.levels || [];
   };
+
+  const getDepartmentsForLevel = () => {
+    const tower = getSelectedTower();
+    const level = tower?.levels.find(l => l.id === selectedFloor);
+    return level?.departments || [];
+  };
+
+  // Limpiar selecciones cuando cambia la torre
+  const handleTowerChange = (towerId: string) => {
+    setSelectedBuilding(towerId);
+    setSelectedFloor('');
+    setSelectedDepartment('');
+  };
+
+  // Limpiar departamento cuando cambia el nivel
+  const handleLevelChange = (levelId: string) => {
+    setSelectedFloor(levelId);
+    setSelectedDepartment('');
+  };
+
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!selectedBuilding || !selectedFloor || !selectedApartment) {
+    if (!selectedDepartment) {
       toast({
         title: "Error",
-        description: "Por favor selecciona un apartamento",
+        description: "Por favor selecciona un departamento",
         variant: "destructive"
       });
       return;
@@ -178,70 +227,61 @@ const AddResident = () => {
     setLoading(true);
     
     try {
-      // Encontrar el edificio y piso seleccionados
-      const building = buildings.find(b => b.id === selectedBuilding);
-      const floor = building?.floors.find(f => f.id === selectedFloor);
-      if (!building || !floor) {
-        throw new Error('No se pudo encontrar el edificio o piso seleccionado');
+      // Encontrar el departamento seleccionado
+      const tower = getSelectedTower();
+      const level = tower?.levels.find(l => l.id === selectedFloor);
+      const department = level?.departments.find(d => d.id === selectedDepartment);
+      
+      if (!department || !tower || !level) {
+        throw new Error('No se pudo encontrar el departamento, torre o nivel seleccionado');
       }
-      const floorNumber = floor.name?.match(/\d+/)?.[0] || '1';
 
-      // Crear FormData para enviar archivos y datos
+      // Crear FormData para enviar archivos y datos según el modelo del backend
       const form = new FormData();
-      // Información personal
+      
+      // Campos requeridos por el modelo Companeros
       form.append('nombre', formData.nombre);
-      form.append('apellido', formData.apellido);
-      form.append('email', formData.email || '');
-      form.append('telefono', formData.telefono || '');
-      form.append('fechaNacimiento', formData.fechaNacimiento || '');
-      form.append('edad', formData.edad ? formData.edad.toString() : '');
-      form.append('noPersonas', formData.noPersonas ? formData.noPersonas.toString() : '');
-      form.append('noPersonasDiscapacitadas', formData.noPersonasDiscapacitadas ? formData.noPersonasDiscapacitadas.toString() : '0');
-      form.append('discapacidad', formData.discapacidad ? 'true' : 'false');
-      // Información financiera básica
-      form.append('deudaActual', formData.deudaActual ? formData.deudaActual.toString() : '0');
-      form.append('pagosRealizados', formData.pagosRealizados ? formData.pagosRealizados.toString() : '0');
-      // Información financiera extendida
-      form.append('financiero.veladas', formData.veladas);
-      form.append('financiero.aportaciones', formData.aportaciones);
-      form.append('financiero.faenas', formData.faenas);
-      form.append('financiero.salidas', JSON.stringify(salidas.filter(fecha => fecha.trim() !== '')));
-      form.append('financiero.id_compañeros', formData.id_compañeros ? formData.id_compañeros.toString() : '');
-      // Información de ubicación
-      form.append('apartmentNumber', selectedApartment);
-      form.append('buildingId', selectedBuilding);
-      form.append('floorNumber', floorNumber);
+      form.append('apellidos', formData.apellido || formData.nombre); // Usar apellido o nombre como fallback
+      form.append('fecha_nacimiento', formData.fechaNacimiento || '');
+      form.append('no_personas', formData.noPersonas ? formData.noPersonas.toString() : '1');
+      form.append('no_des_per', formData.noPersonasDiscapacitadas ? formData.noPersonasDiscapacitadas.toString() : '0');
+      form.append('recibo_apoyo', formData.discapacidad ? 'true' : 'false');
+      form.append('no_apoyo', formData.noPersonasDiscapacitadas ? formData.noPersonasDiscapacitadas.toString() : '0');
+      form.append('id_departamento', selectedDepartment); // Usar el ID real del departamento
+      
       // Foto de perfil
-      if (profilePhoto) form.append('profilePhoto', profilePhoto);
-      // Documentos PDF
+      if (profilePhoto) {
+        form.append('profilePhoto', profilePhoto);
+        console.log('📸 Foto de perfil añadida al formulario:', profilePhoto.name);
+      }
+      
+      // Documentos
       Object.entries(documents).forEach(([key, file]) => {
-        if (file) form.append(`documents_${key}`, file);
+        if (file) {
+          form.append('documents', file);
+          console.log(`📄 Documento ${key} añadido al formulario:`, file.name);
+        }
       });
-      // Información INVI - usar el mismo id_compañeros de financiero
-      form.append('inviInfo', JSON.stringify({
-        idInvi: formData.idInvi || '',
-        mensualidades: formData.mensualidades ? parseInt(formData.mensualidades) : undefined,
-        fechaContrato: formData.fechaContrato || '',
-        deuda: formData.deuda ? parseFloat(formData.deuda) : 0,
-        idCompanero: formData.id_compañeros || ''
-      }));
-      // Información Tlaxilacalli
-      form.append('tlaxilacalliInfo', JSON.stringify({
-        Excedente: formData.Excedente ? parseInt(formData.Excedente) : null,
-        Aport: formData.Aport ? parseInt(formData.Aport) : null,
-        Deuda: formData.Deuda ? parseInt(formData.Deuda) : null,
-        Estacionamiento: formData.Estacionamiento,
-        EstacionamientoDeuda: formData.Estacionamiento ? (formData.EstacionamientoDeuda ? parseFloat(formData.EstacionamientoDeuda) : null) : null,
-        Aportacion: formData.Aportacion ? parseInt(formData.Aportacion) : null,
-        Aportacion_Deuda: formData.Aportacion_Deuda ? parseInt(formData.Aportacion_Deuda) : null,
-        Apoyo_renta: formData.Apoyo_renta,
-        Comentarios: formData.Comentarios || '',
-        Numero: formData.Numero || '',
-        Exp: formData.Exp ? parseInt(formData.Exp) : null
-      }));
+      
+      console.log('📋 Datos del formulario preparados:', {
+        nombre: formData.nombre,
+        apellidos: formData.apellido,
+        fecha_nacimiento: formData.fechaNacimiento,
+        no_personas: formData.noPersonas,
+        no_des_per: formData.noPersonasDiscapacitadas,
+        id_departamento: selectedDepartment,
+        selectedInfo: {
+          tower: tower.name,
+          level: level.number,
+          department: department.number
+        },
+        hasPhoto: !!profilePhoto
+      });
 
       // Crear el residente usando el servicio
-      await residentService.createWithPhoto(form);
+      console.log('🚀 Enviando datos al servidor...');
+      const response = await residentService.createWithPhoto(form);
+      console.log('✅ Respuesta del servidor:', response);
 
       toast({
         title: "Éxito",
@@ -812,66 +852,87 @@ const AddResident = () => {
                   </TabsContent>
                 </Tabs>
 
-                {/* Selección de Ubicación */}
+                {/* Selección Jerárquica: Torre -> Nivel -> Departamento */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold">Ubicación</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="edificio">Edificio *</Label>
-                      <Select value={selectedBuilding} onValueChange={setSelectedBuilding}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar edificio" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {buildings.map((building) => (
-                            <SelectItem key={building.id} value={building.id}>
-                              {building.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                  {loadingDepartments ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="h-4 w-4 animate-spin text-tlahuacali-red" />
+                      <span className="ml-2">Cargando estructuras...</span>
                     </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {/* Selector de Torre */}
+                      <div className="space-y-2">
+                        <Label htmlFor="torre">Torre *</Label>
+                        <Select value={selectedBuilding} onValueChange={handleTowerChange}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleccionar torre" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {towers.map((tower) => (
+                              <SelectItem key={tower.id} value={tower.id}>
+                                {tower.name} {tower.letter && `(${tower.letter})`}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="piso">Piso *</Label>
-                      <Select 
-                        value={selectedFloor} 
-                        onValueChange={setSelectedFloor}
-                        disabled={!selectedBuilding}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar piso" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {getFloorsForBuilding().map((floor) => (
-                            <SelectItem key={floor.id} value={floor.id}>
-                              {floor.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                      {/* Selector de Nivel */}
+                      <div className="space-y-2">
+                        <Label htmlFor="nivel">Nivel *</Label>
+                        <Select 
+                          value={selectedFloor} 
+                          onValueChange={handleLevelChange}
+                          disabled={!selectedBuilding}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleccionar nivel" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {getLevelsForTower().map((level) => (
+                              <SelectItem key={level.id} value={level.id}>
+                                Nivel {level.number} ({level.departments.length} deptos)
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="apartamento">Apartamento *</Label>
-                      <Select 
-                        value={selectedApartment} 
-                        onValueChange={setSelectedApartment}
-                        disabled={!selectedFloor}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar apartamento" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {getApartmentsForFloor().map((apartment) => (
-                            <SelectItem key={apartment} value={apartment}>
-                              {apartment}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {/* Selector de Departamento */}
+                      <div className="space-y-2">
+                        <Label htmlFor="departamento">Departamento *</Label>
+                        <Select 
+                          value={selectedDepartment} 
+                          onValueChange={setSelectedDepartment}
+                          disabled={!selectedFloor}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleccionar depto" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {getDepartmentsForLevel().map((department) => (
+                              <SelectItem key={department.id} value={department.id}>
+                                Depto {department.number}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                  </div>
+                  )}
+                  
+                  {/* Información de selección actual */}
+                  {selectedBuilding && selectedFloor && selectedDepartment && (
+                    <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                      <p className="text-sm text-blue-800">
+                        <strong>Ubicación seleccionada:</strong> {getSelectedTower()?.name} - 
+                        Nivel {getLevelsForTower().find(l => l.id === selectedFloor)?.number} - 
+                        Depto {getDepartmentsForLevel().find(d => d.id === selectedDepartment)?.number}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Botones */}
@@ -879,7 +940,7 @@ const AddResident = () => {
                   {isAdmin && (
                     <Button 
                       type="submit" 
-                      disabled={loading || !selectedApartment}
+                      disabled={loading || !selectedDepartment}
                       className="bg-tlahuacali-red hover:bg-tlahuacali-red/90"
                     >
                       {loading ? (

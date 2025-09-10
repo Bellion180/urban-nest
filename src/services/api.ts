@@ -480,3 +480,12 @@ export const paymentService = {
     });
   },
 };
+
+// ===== SERVICIOS DE DEPARTAMENTOS =====
+export const departmentService = {
+  // Obtener todos los departamentos disponibles
+  getAll: async () => {
+    const response = await authenticatedFetch('/companeros/departments');
+    return response.json();
+  },
+};

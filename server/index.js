@@ -110,6 +110,20 @@ app.get('/api/debug/companeros', (req, res) => {
   res.json({ message: 'Companeros debug route works!', timestamp: new Date().toISOString() });
 });
 
+// RUTA DE DEBUG PARA POST COMPANEROS
+app.post('/api/debug/companeros-post', (req, res) => {
+  console.log('🔍 DEBUG POST COMPANEROS:');
+  console.log('📝 Body:', req.body);
+  console.log('📁 Files:', req.files);
+  console.log('🔑 Headers:', req.headers);
+  res.json({ 
+    message: 'Debug POST companeros', 
+    body: req.body,
+    files: req.files ? Object.keys(req.files) : [],
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Rutas protegidas - Nuevas rutas principales 
 app.use('/api/companeros', authMiddleware, companerosRoutes);
 app.use('/api/torres', torresRoutes);

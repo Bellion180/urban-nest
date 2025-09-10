@@ -115,6 +115,11 @@ model Companeros {
   no_apoyo          Int?
   estatus           Status             @default(ACTIVO)
   profilePhoto      String?            @db.VarChar(255) // Campo para foto de perfil
+  documentos        Json?              // Campo JSON para múltiples documentos
+  documentoIne      String?            @db.VarChar(500) // INE
+  documentoCurp     String?            @db.VarChar(500) // CURP
+  documentoComprobanteDomicilio String? @db.VarChar(500) // Comprobante de domicilio
+  documentoActaNacimiento String?      @db.VarChar(500) // Acta de nacimiento
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   createdBy         User               @relation(fields: [createdById], references: [id], onDelete: Cascade)
